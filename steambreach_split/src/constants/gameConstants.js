@@ -1,7 +1,7 @@
 // Split from UpdatedPeople.jsx
 const HOURLY_RATE = 500;
 
-export const COLORS = {
+const COLORS = {
   bg: '#0a0a0f',
   bgPanel: '#111118',
   bgDark: '#08080c',
