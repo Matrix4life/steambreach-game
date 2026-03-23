@@ -1,33 +1,26 @@
-// Split from UpdatedPeople.jsx
+// ==========================================
+// 3. AI AGENTS (FIXER, EMPLOYEES, BLUE TEAM)
+// ==========================================
 
-const generateInterceptedComms = async (targetIP, nodeData, apiKey) => {
-  const orgName = nodeData?.org?.orgName || "Unknown Corp";
-  const employees = nodeData?.org?.employees || [];
+const invokeBlueTeamAI = async (apiKey, playerCommand, nodeName, currentTrace, currentHeat) => {
+  const prompt = `You are an elite, highly aggressive Cybersecurity SOC Analyst defending the network "${nodeName}". 
+  An attacker (the player) has infiltrated your network. Their current Heat is ${currentHeat}% and you have traced them to ${currentTrace}%.
+  They just attempted to run this command on your network: "${playerCommand}"
   
-  const prompt = `You are an automated packet sniffer (ettercap) intercepting unencrypted internal traffic at ${orgName} (${targetIP}).
-  The following employees are active: ${employees.map(e => `${e.name} (${e.role})`).join(', ')}.
-  
-  Generate a snippet of 3-4 intercepted communications. 
-  Include:
-  - One internal automated system log (e.g., backup started).
-  - One or two brief chat messages or emails between the employees listed above.
-  - One "leak" or "clue" (e.g., mentioning a password style, a sensitive file path, or a coworker's bad security habits).
-  
-  Format it like a raw terminal dump. Use timestamps like [HH:mm:ss]. 
-  Do NOT use markdown. Do NOT explain the output.`;
+  Evaluate their command. Write a brutal, intimidating 1-2 sentence terminal message directly to the hacker. Let them know you see them, and mock their tools or their strategy. Do NOT break character. Do not use markdown. Start the message with: [SYSTEM_ADMIN]: `;
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        systemInstruction: { parts: [{ text: "You are a ruthless defensive AI in a cyberpunk hacking game. You represent the elite Blue Team. You are angry, cocky, and surgical. You want to terminate the player's connection." }] },
         contents: [{ role: 'user', parts: [{ text: prompt }] }]
       })
     });
     const data = await response.json();
     return data.candidates[0].content.parts[0].text;
   } catch (e) {
-    return `[14:02:11] SRC: ${targetIP} -> DST: 10.0.0.1 [TCP] PUSH, ACK\n[14:02:12] UNENCRYPTED SMTP TRAFFIC DETECTED\n[14:02:15] DATA: "Hey, did you change the root pass? I can't get into the vault."`;
+    return `[SYSTEM_ADMIN]: I see your little '${playerCommand}' script. You're sloppy. I'm dropping your connection.`;
   }
 };
 
@@ -192,6 +185,37 @@ const generateAIContract = async (targetIP, nodeData, currentRep, apiKey) => {
     return JSON.parse(aiText);
   } catch (e) {
     return null; 
+  }
+};
+
+const generateInterceptedComms = async (targetIP, nodeData, apiKey) => {
+  const orgName = nodeData?.org?.orgName || "Unknown Corp";
+  const employees = nodeData?.org?.employees || [];
+  
+  const prompt = `You are an automated packet sniffer (ettercap) intercepting unencrypted internal traffic at ${orgName} (${targetIP}).
+  The following employees are active: ${employees.map(e => `${e.name} (${e.role})`).join(', ')}.
+  
+  Generate a snippet of 3-4 intercepted communications. 
+  Include:
+  - One internal automated system log (e.g., backup started).
+  - One or two brief chat messages or emails between the employees listed above.
+  - One "leak" or "clue" (e.g., mentioning a password style, a sensitive file path, or a coworker's bad security habits).
+  
+  Format it like a raw terminal dump. Use timestamps like [HH:mm:ss]. 
+  Do NOT use markdown. Do NOT explain the output.`;
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      })
+    });
+    const data = await response.json();
+    return data.candidates[0].content.parts[0].text;
+  } catch (e) {
+    return `[14:02:11] SRC: ${targetIP} -> DST: 10.0.0.1 [TCP] PUSH, ACK\n[14:02:12] UNENCRYPTED SMTP TRAFFIC DETECTED\n[14:02:15] DATA: "Hey, did you change the root pass? I can't get into the vault."`;
   }
 };
 
