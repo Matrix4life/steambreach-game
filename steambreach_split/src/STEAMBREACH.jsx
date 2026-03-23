@@ -756,7 +756,7 @@ const STEAMBREACH = () => {
         return out;
       },
 
-      ettercap: async () => {
+  ettercap: async () => {
         if (!isInside) return "[-] ettercap: Must be inside a target network to poison ARP tables.";
         if (!inventory.includes('Wireshark')) return "[-] ettercap: Deep Packet Inspector module required. Purchase from 'shop'.";
         const node = world[targetIP];
@@ -764,13 +764,20 @@ const STEAMBREACH = () => {
         if (node.commsGenerated) return "[-] ettercap: ARP cache already poisoned. Traffic captured in terminal history.";
 
         setIsProcessing(true);
-        setTerminal(prev => [...prev, { type: 'out', text: `ettercap 0.8.3.1 (etter.conf)\n\nListening on ${targetIP}/eth0...\n\n  ${node.org.employees?.length || 3} hosts added to TARGET1\n  Gateway added to TARGET2\n\nARP poisoning victims:\n GROUP 1 : ANY (all the hosts in the list)\n GROUP 2 : ANY (all the hosts in the list)\n\nStarting Unified sniffing...\n[*] ARP cache poisoning in progress...\n[*] Capturing packets...`, isNew: false }]);
+        setTerminal(prev => [...prev, { type: 'out', text: `ettercap 0.8.3.1 (etter.conf)\n\nListening on ${targetIP}/eth0...\n\n  ${node.org.employees?.length || 3} hosts added to TARGET1\n  Gateway added to TARGET2\n\n[*] ARP cache poisoning in progress...\n[*] Capturing packets...`, isNew: false }]);
 
-        const comms = await generateInterceptedComms(targetIP);
+        // Pass node and apiKey to the new function
+        const comms = await generateInterceptedComms(targetIP, node, apiKey);
+        
         escalateBlueTeam(targetIP, 15);
         setTrace(t => Math.min(t + 10, 100));
 
-        setWorld(prev => { const nw = { ...prev }; if (nw[targetIP]) nw[targetIP] = { ...nw[targetIP], commsGenerated: true }; return nw; });
+        setWorld(prev => { 
+          const nw = { ...prev }; 
+          if (nw[targetIP]) nw[targetIP] = { ...nw[targetIP], commsGenerated: true }; 
+          return nw; 
+        });
+        
         setIsProcessing(false);
         return `[+] ettercap: MITM active. Sniffed ${node.org.employees?.length || 3} hosts.\n────────────────────────────────────\n${comms}\n────────────────────────────────────\n[!] Trace +10%. ARP anomalies may trigger IDS.`;
       },
