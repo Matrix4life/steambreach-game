@@ -188,34 +188,66 @@ const generateAIContract = async (targetIP, nodeData, currentRep, apiKey) => {
   }
 };
 
-const generateInterceptedComms = async (targetIP, nodeData, apiKey) => {
-  const orgName = nodeData?.org?.orgName || "Unknown Corp";
-  const employees = nodeData?.org?.employees || [];
+const generateAIContract = async (targetIP, nodeData, currentRep, apiKey) => {
+  const prompt = `You are a Darknet Fixer in a hacking simulator. Generate a contract for a player targeting ${nodeData.org.orgName} (Security: ${nodeData.sec.toUpperCase()}). Player Reputation: ${currentRep}.
+  RULES:
+  - LOW/MID SEC: Standard espionage. Generous time (180-300s), heat cap 60-80%.
+  - HIGH SEC: Elite mercenary work. Tight time (120-180s), heat cap 40-50%.
+  - ELITE SEC: "Ghost" tier. Brutal conditions (<90s), heat cap <30%, massive payout ($150k - $500k).
   
-  const prompt = `You are an automated packet sniffer (ettercap) intercepting unencrypted internal traffic at ${orgName} (${targetIP}).
-  The following employees are active: ${employees.map(e => `${e.name} (${e.role})`).join(', ')}.
-  
-  Generate a snippet of 3-4 intercepted communications. 
-  Include:
-  - One internal automated system log (e.g., backup started).
-  - One or two brief chat messages or emails between the employees listed above.
-  - One "leak" or "clue" (e.g., mentioning a password style, a sensitive file path, or a coworker's bad security habits).
-  
-  Format it like a raw terminal dump. Use timestamps like [HH:mm:ss]. 
-  Do NOT use markdown. Do NOT explain the output.`;
+  Return ONLY raw JSON in this exact format. No markdown, no explanation:
+  {
+    "type": "exfil",
+    "desc": "2 sentences of immersive darknet flavor text explaining the job.",
+    "timeLimit": 200,
+    "reward": 50000,
+    "repReward": 20,
+    "heatCap": 50,
+    "forbidden_tools": [], 
+    "isAmbush": false 
+  }`;
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        // Disable safety filters for game lore generation
+        safetySettings: [
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" }
+        ]
       })
     });
+    
     const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
+    let aiText = data.candidates[0].content.parts[0].text;
+    
+    // Strip markdown formatting if the AI includes it anyway
+    aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    
+    // Extract just the JSON object if there's trailing text
+    const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      aiText = jsonMatch[0];
+    }
+    
+    return JSON.parse(aiText);
   } catch (e) {
-    return `[14:02:11] SRC: ${targetIP} -> DST: 10.0.0.1 [TCP] PUSH, ACK\n[14:02:12] UNENCRYPTED SMTP TRAFFIC DETECTED\n[14:02:15] DATA: "Hey, did you change the root pass? I can't get into the vault."`;
+    // FALLBACK: If API gets blocked, times out, or formats badly, return a static contract
+    const isHigh = nodeData.sec === 'high' || nodeData.sec === 'elite';
+    return {
+      type: "exfil",
+      desc: `Client requires immediate extraction of proprietary data from ${nodeData.org.orgName}. Get in, get the files, and scrub your tracks.`,
+      timeLimit: isHigh ? 180 : 300,
+      reward: isHigh ? 150000 : 50000,
+      repReward: isHigh ? 50 : 20,
+      heatCap: isHigh ? 40 : 80,
+      forbidden_tools: [],
+      isAmbush: Math.random() < 0.1
+    };
   }
 };
 
