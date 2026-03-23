@@ -154,47 +154,59 @@ const generateOrgFileSystem = (org, tier, layout) => {
   return { files: filesObj, contents };
 };
 
-const generateAIContract = async (targetIP, nodeData, currentRep, apiKey) => {
-  const prompt = `You are a Darknet Fixer in a hacking simulator. Generate a contract for a player targeting ${nodeData.org.orgName} (Security: ${nodeData.sec.toUpperCase()}). Player Reputation: ${currentRep}.
-  RULES:
-  - LOW/MID SEC: Standard espionage. Generous time (180-300s), heat cap 60-80%.
-  - HIGH SEC: Elite mercenary work. Tight time (120-180s), heat cap 40-50%.
-  - ELITE SEC: "Ghost" tier. Brutal conditions (<90s), heat cap <30%, massive payout ($150k - $500k).
+const generateInterceptedComms = async (targetIP, nodeData, apiKey) => {
+  const orgName = nodeData?.org?.orgName || "Unknown Corp";
+  const employees = nodeData?.org?.employees || [];
   
-  Return ONLY raw JSON in this exact format. No markdown, no explanation:
-  {
-    "type": "exfil",
-    "desc": "2 sentences of immersive darknet flavor text explaining the job.",
-    "timeLimit": 200,
-    "reward": 50000,
-    "repReward": 20,
-    "heatCap": 50,
-    "forbidden_tools": [], 
-    "isAmbush": false 
-  }`;
+  const prompt = `You are an automated packet sniffer (ettercap) intercepting unencrypted internal traffic at ${orgName} (${targetIP}).
+  The following employees are active: ${employees.map(e => `${e.name} (${e.role})`).join(', ')}.
+  
+  Generate a snippet of 3-4 intercepted communications. 
+  Include:
+  - One internal automated system log (e.g., backup started).
+  - One or two brief chat messages or emails between the employees listed above.
+  - One "leak" or "clue" (e.g., mentioning a password style, a sensitive file path, or a coworker's bad security habits).
+  
+  Format it like a raw terminal dump. Use timestamps like [HH:mm:ss]. 
+  Do NOT use markdown. Do NOT explain the output.`;
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] })
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      })
     });
     const data = await response.json();
-    let aiText = data.candidates[0].content.parts[0].text;
-    
-    aiText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(aiText);
+    return data.candidates[0].content.parts[0].text;
   } catch (e) {
-    return null; 
+    return `[14:02:11] SRC: ${targetIP} -> DST: 10.0.0.1 [TCP] PUSH, ACK\n[14:02:12] UNENCRYPTED SMTP TRAFFIC DETECTED\n[14:02:15] DATA: "Hey, did you change the root pass? I can't get into the vault."`;
   }
 };
 
 const generateAIContract = async (targetIP, nodeData, currentRep, apiKey) => {
-  const prompt = `You are a Darknet Fixer in a hacking simulator. Generate a contract for a player targeting ${nodeData.org.orgName} (Security: ${nodeData.sec.toUpperCase()}). Player Reputation: ${currentRep}.
-  RULES:
-  - LOW/MID SEC: Standard espionage. Generous time (180-300s), heat cap 60-80%.
-  - HIGH SEC: Elite mercenary work. Tight time (120-180s), heat cap 40-50%.
-  - ELITE SEC: "Ghost" tier. Brutal conditions (<90s), heat cap <30%, massive payout ($150k - $500k).
-  
+  // Ultra-safe data extraction so undefined variables never crash the game
+  const orgName = nodeData?.org?.orgName || "Unknown Target";
+  const secLevel = nodeData?.sec || "mid";
+  const isHigh = secLevel === 'high' || secLevel === 'elite';
+
+  // 100% Guaranteed Fallback Contract
+  const fallbackContract = {
+    type: "exfil",
+    desc: `[ENCRYPTED REROUTE] Client requires immediate extraction of proprietary data from ${orgName}. Get in, get the files, and scrub your tracks.`,
+    timeLimit: isHigh ? 180 : 300,
+    reward: isHigh ? 150000 : 50000,
+    repReward: isHigh ? 50 : 20,
+    heatCap: isHigh ? 40 : 80,
+    forbidden_tools: [],
+    isAmbush: Math.random() < 0.1
+  };
+
+  // If there's no API key, don't even try to fetch, just give the fallback immediately
+  if (!apiKey) return fallbackContract;
+
+  const prompt = `You are a Darknet Fixer in a hacking simulator. Generate a contract for a player targeting ${orgName} (Security: ${secLevel.toUpperCase()}). Player Reputation: ${currentRep}.
   Return ONLY raw JSON in this exact format. No markdown, no explanation:
   {
     "type": "exfil",
@@ -208,11 +220,16 @@ const generateAIContract = async (targetIP, nodeData, currentRep, apiKey) => {
   }`;
 
   try {
+    // 4-Second strict timeout. If the API doesn't answer by then, kill the request.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({ 
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        // Disable safety filters for game lore generation
         safetySettings: [
           { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
           { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -222,32 +239,29 @@ const generateAIContract = async (targetIP, nodeData, currentRep, apiKey) => {
       })
     });
     
+    clearTimeout(timeoutId);
+
+    if (!response.ok) return fallbackContract;
+    
     const data = await response.json();
+    if (!data.candidates || !data.candidates[0].content) return fallbackContract;
+
     let aiText = data.candidates[0].content.parts[0].text;
     
-    // Strip markdown formatting if the AI includes it anyway
+    // Clean up the text to ensure we only parse the JSON
     aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    
-    // Extract just the JSON object if there's trailing text
     const jsonMatch = aiText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      aiText = jsonMatch[0];
-    }
     
-    return JSON.parse(aiText);
+    if (jsonMatch) {
+      const parsedData = JSON.parse(jsonMatch[0]);
+      // Merge the generated data over the fallback, guaranteeing all required fields exist
+      return { ...fallbackContract, ...parsedData };
+    } else {
+      return fallbackContract;
+    }
   } catch (e) {
-    // FALLBACK: If API gets blocked, times out, or formats badly, return a static contract
-    const isHigh = nodeData.sec === 'high' || nodeData.sec === 'elite';
-    return {
-      type: "exfil",
-      desc: `Client requires immediate extraction of proprietary data from ${nodeData.org.orgName}. Get in, get the files, and scrub your tracks.`,
-      timeLimit: isHigh ? 180 : 300,
-      reward: isHigh ? 150000 : 50000,
-      repReward: isHigh ? 50 : 20,
-      heatCap: isHigh ? 40 : 80,
-      forbidden_tools: [],
-      isAmbush: Math.random() < 0.1
-    };
+    // If absolutely anything goes wrong (timeout, crash, parse error), return the fallback
+    return fallbackContract;
   }
 };
 
