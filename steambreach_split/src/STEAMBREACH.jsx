@@ -1,3 +1,8 @@
+import {
+  invokeBlueTeamAI,
+  generateAIContract,
+  generateInterceptedComms, // Add this
+} from './ai/agents';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   HOURLY_RATE,
