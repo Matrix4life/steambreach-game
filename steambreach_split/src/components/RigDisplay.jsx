@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { COLORS } from '../constants/gameConstants';
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
@@ -9,6 +9,30 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
   const hasCooling = inventory.includes('Cooling');
   const hasGPU = inventory.includes('GPU');
   const hasRGB = inventory.includes('RGB');
+
+  const [bootStage, setBootStage] = useState(0);
+
+  useEffect(() => {
+    setBootStage(0);
+    const timers = [
+      setTimeout(() => setBootStage(1), 180),
+      setTimeout(() => setBootStage(2), 360),
+      setTimeout(() => setBootStage(3), 620),
+      setTimeout(() => setBootStage(4), 920),
+      setTimeout(() => setBootStage(5), 1240),
+      setTimeout(() => setBootStage(6), 1560),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  const booting = bootStage < 6;
+
+  const showCase = bootStage >= 1;
+  const showBoard = bootStage >= 2;
+  const showCPU = bootStage >= 3;
+  const showCooling = bootStage >= 4;
+  const showGPU = bootStage >= 5;
+  const showRGB = bootStage >= 6;
 
   const safeHeat = clamp(heat, 0, 100);
   const gpuLoad = hasGPU ? clamp(Math.round(safeHeat * 0.85 + (isProcessing ? 12 : 0)), 8, 100) : 0;
@@ -24,21 +48,27 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
   const isHot = safeHeat >= 78;
   const isWarm = safeHeat >= 45;
   const liquidColor = isHot ? COLORS.danger : isWarm ? COLORS.warning : COLORS.primary;
-  const fanDur = isHot ? '0.16s' : isWarm ? '0.42s' : '1.2s';
+  const fanDur = booting ? '1.8s' : isHot ? '0.16s' : isWarm ? '0.42s' : '1.2s';
   const panelHeight = expanded ? 280 : 88;
 
-  const tempLabelColor = isHot ? COLORS.danger : isWarm ? COLORS.warning : COLORS.secondary;
+  const tempLabelColor = booting
+    ? COLORS.warning
+    : isHot
+      ? COLORS.danger
+      : isWarm
+        ? COLORS.warning
+        : COLORS.secondary;
 
   const bars = useMemo(
     () =>
       Array.from({ length: 10 }, (_, i) => {
         const threshold = (i + 1) * 10;
         return {
-          active: gpuLoad >= threshold,
+          active: !booting && gpuLoad >= threshold,
           index: i,
         };
       }),
-    [gpuLoad]
+    [gpuLoad, booting]
   );
 
   return (
@@ -47,18 +77,20 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
         width: 250,
         height: panelHeight,
         flexShrink: 0,
-        border: `1px solid ${isHot ? `${COLORS.danger}88` : COLORS.border}`,
+        border: `1px solid ${isHot && !booting ? `${COLORS.danger}88` : COLORS.border}`,
         background: COLORS.bgDark,
         position: 'relative',
         overflow: 'hidden',
         borderRadius: 6,
         transition: 'height 0.28s ease, box-shadow 0.25s ease, border-color 0.25s ease',
         cursor: expanded ? 'default' : 'pointer',
-        boxShadow: isHot
-          ? `0 0 18px ${COLORS.danger}35, inset 0 0 25px ${COLORS.danger}18`
-          : hasRGB
-            ? `0 0 18px ${COLORS.primary}18, inset 0 0 16px rgba(255,255,255,0.02)`
-            : 'inset 0 0 16px rgba(255,255,255,0.02)',
+        boxShadow: booting
+          ? `0 0 16px rgba(255,216,102,0.18), inset 0 0 18px rgba(255,216,102,0.08)`
+          : isHot
+            ? `0 0 18px ${COLORS.danger}35, inset 0 0 25px ${COLORS.danger}18`
+            : hasRGB
+              ? `0 0 18px ${COLORS.primary}18, inset 0 0 16px rgba(255,255,255,0.02)`
+              : 'inset 0 0 16px rgba(255,255,255,0.02)',
       }}
       onClick={!expanded ? toggleExpand : undefined}
     >
@@ -83,15 +115,26 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
           0%, 100% { opacity: 0.92; }
           50% { opacity: 0.58; }
         }
+        @keyframes rig-boot-pulse {
+          0%, 100% { opacity: 0.45; }
+          50% { opacity: 1; }
+        }
+        @keyframes rig-boot-scan {
+          0% { transform: translateY(-110%); opacity: 0; }
+          20% { opacity: 0.65; }
+          100% { transform: translateY(110%); opacity: 0; }
+        }
         .rig-spin { transform-origin: center; animation: rig-fan-spin ${fanDur} linear infinite; }
         .rig-flow { stroke-dasharray: 8 5; animation: rig-flow 0.45s linear infinite; }
         .rig-rgb-frame { animation: rig-rgb-cycle 4s linear infinite; }
         .rig-overheat { animation: rig-heat-pulse 1s ease-in-out infinite; }
         .rig-warning { animation: rig-warning-blink 0.85s linear infinite; }
         .rig-gpu-active { animation: rig-bar-flicker 0.9s ease-in-out infinite; }
+        .rig-boot-text { animation: rig-boot-pulse 0.9s linear infinite; }
+        .rig-boot-scan { animation: rig-boot-scan 1.3s linear infinite; }
       `}</style>
 
-      {hasRGB && expanded && (
+      {showRGB && hasRGB && expanded && (
         <div
           className="rig-rgb-frame"
           style={{
@@ -105,7 +148,7 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
         />
       )}
 
-      {isHot && expanded && (
+      {!booting && isHot && expanded && (
         <div
           className="rig-overheat"
           style={{
@@ -115,6 +158,33 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
             pointerEvents: 'none',
           }}
         />
+      )}
+
+      {booting && expanded && (
+        <>
+          <div
+            className="rig-boot-scan"
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 32,
+              background: `linear-gradient(180deg, transparent, ${COLORS.warning}22, transparent)`,
+              pointerEvents: 'none',
+              zIndex: 2,
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'radial-gradient(circle at 50% 50%, rgba(255,216,102,0.06), transparent 70%)',
+              pointerEvents: 'none',
+              zIndex: 1,
+            }}
+          />
+        </>
       )}
 
       <div
@@ -135,11 +205,13 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
         }}
       >
         <span>RIG</span>
-        <span style={{ color: tempLabelColor }}>{safeHeat}% TEMP</span>
-        {hasGPU && expanded && <span style={{ color: COLORS.primary }}>{gpuLoad}% GPU</span>}
+        <span style={{ color: tempLabelColor }}>
+          {booting ? 'BOOTING...' : `${safeHeat}% TEMP`}
+        </span>
+        {hasGPU && expanded && !booting && <span style={{ color: COLORS.primary }}>{gpuLoad}% GPU</span>}
       </div>
 
-      {isHot && expanded && (
+      {!booting && isHot && expanded && (
         <div
           className="rig-warning"
           style={{
@@ -208,19 +280,23 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
           >
             <div
               style={{
-                width: `${safeHeat}%`,
+                width: `${booting ? Math.min(bootStage * 16, 100) : safeHeat}%`,
                 height: '100%',
-                background: isHot
-                  ? `linear-gradient(90deg, ${COLORS.warning}, ${COLORS.danger})`
-                  : isWarm
-                    ? `linear-gradient(90deg, ${COLORS.primary}, ${COLORS.warning})`
-                    : `linear-gradient(90deg, ${COLORS.secondary}, ${COLORS.primary})`,
-                boxShadow: `0 0 12px ${liquidColor}55`,
+                background: booting
+                  ? `linear-gradient(90deg, ${COLORS.warning}, ${COLORS.primary})`
+                  : isHot
+                    ? `linear-gradient(90deg, ${COLORS.warning}, ${COLORS.danger})`
+                    : isWarm
+                      ? `linear-gradient(90deg, ${COLORS.primary}, ${COLORS.warning})`
+                      : `linear-gradient(90deg, ${COLORS.secondary}, ${COLORS.primary})`,
+                boxShadow: `0 0 12px ${booting ? COLORS.warning : liquidColor}55`,
                 transition: 'width 0.25s ease',
               }}
             />
           </div>
-          <span style={{ fontSize: 8, color: COLORS.textDim, letterSpacing: '1px' }}>STATUS</span>
+          <span style={{ fontSize: 8, color: COLORS.textDim, letterSpacing: '1px' }}>
+            {booting ? 'INIT' : 'STATUS'}
+          </span>
         </div>
       )}
 
@@ -232,10 +308,6 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
         style={{ padding: expanded ? 10 : 8, filter: 'drop-shadow(2px 4px 7px rgba(0,0,0,0.45))' }}
       >
         <defs>
-          <linearGradient id="gpuBar" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor={COLORS.primary} />
-            <stop offset="100%" stopColor={COLORS.warning} />
-          </linearGradient>
           <linearGradient id="heatStrip" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor={COLORS.secondary} />
             <stop offset="60%" stopColor={COLORS.warning} />
@@ -243,23 +315,55 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
           </linearGradient>
         </defs>
 
-        <rect x="8" y="12" width="204" height="250" rx="8" fill={caseOuter} stroke={chassisAccent} strokeWidth="2" />
-        <rect x="18" y="22" width="184" height="228" rx="5" fill={caseInner} stroke={hasRGB ? 'rgba(255,255,255,0.08)' : COLORS.borderActive} strokeWidth="1.5" />
+        <rect
+          x="8"
+          y="12"
+          width="204"
+          height="250"
+          rx="8"
+          fill={showCase ? caseOuter : '#0c0d12'}
+          stroke={showCase ? chassisAccent : '#191d25'}
+          strokeWidth="2"
+          opacity={showCase ? 1 : 0.45}
+        />
+        <rect
+          x="18"
+          y="22"
+          width="184"
+          height="228"
+          rx="5"
+          fill={showCase ? caseInner : '#090b10'}
+          stroke={showRGB && hasRGB ? 'rgba(255,255,255,0.08)' : COLORS.borderActive}
+          strokeWidth="1.5"
+          opacity={showCase ? 1 : 0.35}
+        />
 
-        <rect x="28" y="35" width="104" height="142" rx="4" fill={moboColor} stroke="#0a0a0a" strokeWidth="1.2" />
-        <rect x="35" y="45" width="22" height="10" fill="#10131a" />
-        <rect x="101" y="48" width="22" height="72" rx="2" fill="#11151d" />
-        <rect x="106" y="53" width="4" height="62" fill={metal} />
-        <rect x="113" y="53" width="4" height="62" fill={metal} />
+        <rect
+          x="28"
+          y="35"
+          width="104"
+          height="142"
+          rx="4"
+          fill={showBoard ? moboColor : '#0d1016'}
+          stroke="#0a0a0a"
+          strokeWidth="1.2"
+          opacity={showBoard ? 1 : 0.3}
+        />
+        <rect x="35" y="45" width="22" height="10" fill={showBoard ? '#10131a' : '#0b0d12'} opacity={showBoard ? 1 : 0.25} />
+        <rect x="101" y="48" width="22" height="72" rx="2" fill={showBoard ? '#11151d' : '#0b0d12'} opacity={showBoard ? 1 : 0.25} />
+        <rect x="106" y="53" width="4" height="62" fill={showBoard ? metal : '#111'} opacity={showBoard ? 1 : 0.25} />
+        <rect x="113" y="53" width="4" height="62" fill={showBoard ? metal : '#111'} opacity={showBoard ? 1 : 0.25} />
 
-        <rect x="18" y="192" width="82" height="48" rx="3" fill={psuColor} stroke="#111" strokeWidth="1.2" />
-        <circle cx="44" cy="216" r="16" fill="#0c0c10" stroke="#333842" strokeWidth="2" />
-        <g transform="translate(44 216)">
-          <path d="M 0 -11 Q 5 0 0 11 Q -5 0 0 -11" fill={COLORS.textDim} className="rig-spin" />
-          <path d="M -11 0 Q 0 5 11 0 Q 0 -5 -11 0" fill={COLORS.textDim} className="rig-spin" />
-        </g>
+        <rect x="18" y="192" width="82" height="48" rx="3" fill={showCase ? psuColor : '#0d0f13'} stroke="#111" strokeWidth="1.2" opacity={showCase ? 1 : 0.35} />
+        <circle cx="44" cy="216" r="16" fill="#0c0c10" stroke="#333842" strokeWidth="2" opacity={showCase ? 1 : 0.35} />
+        {showCase && (
+          <g transform="translate(44 216)">
+            <path d="M 0 -11 Q 5 0 0 11 Q -5 0 0 -11" fill={COLORS.textDim} className="rig-spin" />
+            <path d="M -11 0 Q 0 5 11 0 Q 0 -5 -11 0" fill={COLORS.textDim} className="rig-spin" />
+          </g>
+        )}
 
-        <g transform="translate(53 55)">
+        <g transform="translate(53 55)" opacity={showCPU ? 1 : 0.28}>
           {hasCPU ? (
             <>
               <rect x="0" y="0" width="40" height="40" rx="3" fill="#242833" stroke={COLORS.primary} strokeWidth="1.2" />
@@ -269,8 +373,8 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
                 width="22"
                 height="22"
                 rx="2"
-                fill={COLORS.primary}
-                opacity={isProcessing ? 0.95 : 0.72}
+                fill={booting ? COLORS.warning : COLORS.primary}
+                opacity={booting ? 0.75 : isProcessing ? 0.95 : 0.72}
                 style={{ transition: 'opacity 0.15s ease' }}
               />
             </>
@@ -278,7 +382,7 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
             <rect x="5" y="5" width="30" height="30" rx="2" fill="#343843" />
           )}
 
-          {hasCooling ? (
+          {showCooling && hasCooling ? (
             <>
               <rect x="5" y="5" width="30" height="30" rx="15" fill="#0b0d12" stroke={liquidColor} strokeWidth="2" />
               <circle cx="20" cy="20" r="8" fill="rgba(255,255,255,0.02)" stroke={liquidColor} strokeWidth="1" opacity="0.75" />
@@ -294,7 +398,7 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
           )}
         </g>
 
-        {hasCooling && (
+        {showCooling && hasCooling && (
           <>
             <path d="M 93 73 Q 118 55 162 52" fill="none" stroke={liquidColor} strokeWidth="7" opacity="0.22" />
             <path d="M 93 73 Q 118 55 162 52" fill="none" stroke={liquidColor} strokeWidth="2" className="rig-flow" />
@@ -312,45 +416,44 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
           </>
         )}
 
-        {hasGPU ? (
-          <g transform="translate(25 126)">
-            <rect x="0" y="0" width="114" height="38" rx="4" fill="#171b24" stroke={COLORS.primary} strokeWidth="1.1" />
-            <rect x="8" y="6" width="18" height="3" fill={COLORS.warning} />
-            <rect x="0" y="0" width="114" height="38" rx="4" fill="transparent" stroke={hasRGB ? 'rgba(255,255,255,0.08)' : 'transparent'} />
-
-            {[29, 78].map((x) => (
-              <g key={x} transform={`translate(${x} 19)`}>
-                <circle cx="0" cy="0" r="12" fill="#0b0d11" stroke="#2a313d" strokeWidth="1" />
-                <path d="M 0 -10 Q 4 0 0 10 Q -4 0 0 -10" fill={COLORS.primary} className="rig-spin" />
-                <path d="M -10 0 Q 0 4 10 0 Q 0 -4 -10 0" fill={COLORS.primary} className="rig-spin" />
-              </g>
-            ))}
-
-            {hasRGB && (
-              <rect
-                x="0"
-                y="0"
-                width="114"
-                height="38"
-                rx="4"
-                fill="none"
-                stroke={COLORS.danger}
-                strokeWidth="1.4"
-                style={{ mixBlendMode: 'screen' }}
-                className="rig-rgb-frame"
-              />
-            )}
-          </g>
-        ) : (
-          <g transform="translate(28 132)">
-            <rect x="0" y="0" width="66" height="4" rx="1" fill="#11151c" />
-            <rect x="0" y="14" width="66" height="4" rx="1" fill="#11151c" />
-          </g>
-        )}
+        <g transform="translate(25 126)" opacity={showGPU ? 1 : 0.24}>
+          {hasGPU ? (
+            <>
+              <rect x="0" y="0" width="114" height="38" rx="4" fill="#171b24" stroke={COLORS.primary} strokeWidth="1.1" />
+              <rect x="8" y="6" width="18" height="3" fill={COLORS.warning} />
+              {[29, 78].map((x) => (
+                <g key={x} transform={`translate(${x} 19)`}>
+                  <circle cx="0" cy="0" r="12" fill="#0b0d11" stroke="#2a313d" strokeWidth="1" />
+                  <path d="M 0 -10 Q 4 0 0 10 Q -4 0 0 -10" fill={COLORS.primary} className="rig-spin" />
+                  <path d="M -10 0 Q 0 4 10 0 Q 0 -4 -10 0" fill={COLORS.primary} className="rig-spin" />
+                </g>
+              ))}
+              {showRGB && hasRGB && (
+                <rect
+                  x="0"
+                  y="0"
+                  width="114"
+                  height="38"
+                  rx="4"
+                  fill="none"
+                  stroke={COLORS.danger}
+                  strokeWidth="1.4"
+                  style={{ mixBlendMode: 'screen' }}
+                  className="rig-rgb-frame"
+                />
+              )}
+            </>
+          ) : (
+            <>
+              <rect x="0" y="0" width="66" height="4" rx="1" fill="#11151c" />
+              <rect x="0" y="14" width="66" height="4" rx="1" fill="#11151c" />
+            </>
+          )}
+        </g>
 
         {expanded && (
           <>
-            <g transform="translate(150 172)">
+            <g transform="translate(150 172)" opacity={showGPU ? 1 : 0.25}>
               <text x="0" y="0" fill={COLORS.textDim} fontSize="8" letterSpacing="1">GPU LOAD</text>
               <rect x="0" y="8" width="46" height="70" rx="4" fill="#0f1218" stroke="#262c36" strokeWidth="1" />
               {bars.map((bar) => {
@@ -377,30 +480,61 @@ const RigDisplay = ({ inventory = [], heat = 0, isProcessing = false, expanded =
                   />
                 );
               })}
-              <text x="23" y="92" textAnchor="middle" fill={COLORS.primary} fontSize="9">{gpuLoad}%</text>
+              <text x="23" y="92" textAnchor="middle" fill={booting ? COLORS.warning : COLORS.primary} fontSize="9">
+                {booting ? '--' : `${gpuLoad}%`}
+              </text>
             </g>
 
             <g transform="translate(28 252)">
-              <text x="0" y="0" fill={COLORS.textDim} fontSize="8" letterSpacing="1">THERMAL</text>
+              <text x="0" y="0" fill={COLORS.textDim} fontSize="8" letterSpacing="1">
+                {booting ? 'POWER SEQ' : 'THERMAL'}
+              </text>
               <rect x="0" y="8" width="108" height="8" rx="999" fill="#10141b" stroke="#262c36" strokeWidth="1" />
               <rect
                 x="1"
                 y="9"
-                width={Math.max(4, safeHeat * 1.06)}
+                width={booting ? Math.min(bootStage * 17, 106) : Math.max(4, safeHeat * 1.06)}
                 height="6"
                 rx="999"
-                fill="url(#heatStrip)"
+                fill={booting ? COLORS.warning : 'url(#heatStrip)'}
                 opacity="0.95"
               />
             </g>
 
-            <g transform="translate(142 248)">
+            <g transform="translate(142 248)" opacity={showCPU ? 1 : 0.25}>
               <text x="0" y="0" fill={COLORS.textDim} fontSize="8" letterSpacing="1">CPU</text>
-              <text x="0" y="14" fill={COLORS.secondary} fontSize="11">{cpuLoad}%</text>
+              <text x="0" y="14" fill={booting ? COLORS.warning : COLORS.secondary} fontSize="11">
+                {booting ? 'SYNC' : `${cpuLoad}%`}
+              </text>
             </g>
           </>
         )}
       </svg>
+
+      {booting && expanded && (
+        <div
+          className="rig-boot-text"
+          style={{
+            position: 'absolute',
+            bottom: 10,
+            left: 12,
+            right: 12,
+            zIndex: 4,
+            fontSize: 9,
+            letterSpacing: '1.1px',
+            color: COLORS.warning,
+            display: 'flex',
+            justifyContent: 'space-between',
+            background: 'rgba(0,0,0,0.45)',
+            border: `1px solid ${COLORS.warning}33`,
+            borderRadius: 4,
+            padding: '5px 8px',
+          }}
+        >
+          <span>BOOT SEQUENCE</span>
+          <span>STAGE {bootStage}/6</span>
+        </div>
+      )}
     </div>
   );
 };
