@@ -2165,4 +2165,4 @@ ${score >= 40 ? '[!] Intel suggests coordinated Blue Team response to your recen
     </div>
   );
 };
-
+export default STEAMBREACH;
