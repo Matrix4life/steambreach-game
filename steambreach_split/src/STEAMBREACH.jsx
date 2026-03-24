@@ -41,6 +41,7 @@ const STEAMBREACH = () => {
   const [showHelpMenu, setShowHelpMenu] = useState(false);
 
   const [money, setMoney] = useState(0);
+  const [localHashes, setLocalHashes] = useState([]);
   const [consumables, setConsumables] = useState({ decoy: 0, burner: 0, zeroday: 0 });
   const [reputation, setReputation] = useState(0);
   const [heat, setHeat] = useState(0);
@@ -983,7 +984,13 @@ const STEAMBREACH = () => {
           }
         }
 
-        // 5. DEFAULT BEHAVIOR (Just downloading random junk lore files)
+        // 5. DEFAULT BEHAVIOR (Saving files locally)
+        if (arg1.endsWith('.hashes') || arg1.endsWith('.bak')) {
+          setLocalHashes(prev => [...prev, arg1]);
+          removeFileFromServer();
+          return `[+] TRANSFER COMPLETE: ${arg1}\n[*] Encrypted hashes secured locally. Run 'john ${arg1}' to crack.`;
+        }
+        
         return `[+] TRANSFER COMPLETE: ${arg1}\n[*] File safely stored to local drive.`;
       },
 
@@ -1006,6 +1013,46 @@ const STEAMBREACH = () => {
 
         const nodeCount = distributed ? botnet.length : 0;
         const speedMult = distributed ? Math.max(1, nodeCount) : 1;
+
+        john: async () => {
+        if (isInside) return "[-] john: Must be run on your local rig. Type 'exit' to disconnect first.";
+        if (!arg1) {
+          const files = localHashes.length > 0 ? localHashes.join('\n    ') : '(No hash files downloaded)';
+          return `[-] john: missing target file.\n[*] Usage: john <filename>\n[*] Local hash files available:\n    ${files}`;
+        }
+        
+        if (!localHashes.includes(arg1)) return `[-] john: File '${arg1}' not found on local drive. Did you download it?`;
+
+        // Check CPU Tier from inventory to determine cracking speed
+        let cpuTier = 0;
+        if (inventory.includes('CPU_MK3')) cpuTier = 3;
+        else if (inventory.includes('CPU_MK2')) cpuTier = 2;
+        else if (inventory.includes('CPU')) cpuTier = 1;
+
+        // Better CPU = Faster Cracking & Less Heat generated
+        const crackTime = cpuTier === 3 ? 2000 : cpuTier === 2 ? 4000 : cpuTier === 1 ? 6000 : 8000;
+        const heatSpike = cpuTier === 3 ? 10 : cpuTier === 2 ? 15 : cpuTier === 1 ? 25 : 40;
+
+        setIsProcessing(true);
+        setHeat(h => Math.min(h + heatSpike, 100));
+
+        setTerminal(prev => [...prev, { type: 'out', text: `[*] Loading ${arg1}... 14,021 password hashes loaded.`, isNew: false }]);
+        await new Promise(r => setTimeout(r, 800));
+        setTerminal(prev => [...prev, { type: 'out', text: `[*] Initiating brute-force and dictionary attacks...`, isNew: false }]);
+        setTerminal(prev => [...prev, { type: 'out', text: `[!] WARNING: CPU load at maximum. Thermals rising (+${heatSpike}%).`, isNew: false }]);
+        
+        await new Promise(r => setTimeout(r, crackTime));
+
+        // Generate the reward
+        const payout = Math.floor(Math.random() * 25000 + 5000);
+        setMoney(m => m + payout);
+        
+        // Remove the cracked file from local storage
+        setLocalHashes(prev => prev.filter(f => f !== arg1));
+        setIsProcessing(false);
+        
+        return `[+] CRACKING COMPLETE.\n[+] Found 3 sysadmin passwords.\n[+] Extracted hidden offshore wallet keys: $${payout.toLocaleString()} XMR acquired.\n[*] ${arg1} has been processed and cleared from local drive.`;
+      },
         
         // HARDWARE UPGRADE: CPU makes hashcat twice as fast
         const baseCrackTime = Math.max(800, Math.floor(3000 / speedMult));
