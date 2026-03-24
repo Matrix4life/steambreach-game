@@ -1,28 +1,4 @@
-// ==========================================
-// 1. LORE & NARRATIVE GENERATOR
-// ==========================================
-export const generateOrgNarrative = (tier) => {
-  const prefixes = ['Aegis', 'Omni', 'Nexus', 'Stryker', 'Apex', 'Quantum', 'Synapse', 'Vanguard', 'Cyber', 'Neo'];
-  const suffixes = ['Corp', 'Systems', 'Dynamics', 'Logistics', 'Solutions', 'Global', 'Network', 'Syndicate'];
-  const orgName = `${prefixes[Math.floor(Math.random() * prefixes.length)]} ${suffixes[Math.floor(Math.random() * suffixes.length)]}`;
-  
-  const types = tier === 'elite' ? ['Banking', 'Defense', 'Intelligence'] : tier === 'high' ? ['Tech', 'Finance', 'Energy'] : ['Retail', 'Media', 'Logistics'];
-  const type = types[Math.floor(Math.random() * types.length)];
-  
-  const firstNames = ['John', 'Sarah', 'Mike', 'Elena', 'David', 'Chloe', 'Alex', 'Rachel', 'Marcus', 'Priya'];
-  const lastNames = ['Smith', 'Chen', 'Rodriguez', 'Kim', 'Patel', 'Davis', 'Wright', 'Silva', 'Wong', 'Olsen'];
-  
-  const employees = Array.from({ length: 4 }).map(() => ({
-    name: `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`,
-    role: ['Sysadmin', 'DevOps', 'HR', 'Analyst'][Math.floor(Math.random() * 4)]
-  }));
-  
-  return { orgName, type, employees };
-};
 
-// ==========================================
-// 2. FILE SYSTEM GENERATOR
-// ==========================================
 const EMAIL_SUBJECTS = [
   'urgent_login_reset', 'fwd_invoice_q3', 'meeting_notes', 'lunch_order',
   'project_alpha_specs', 'onboarding_doc', 'server_logs_error', 'draft_v2',
@@ -44,9 +20,9 @@ export const generateOrgFileSystem = (org, tier, layout) => {
     filesObj[buildPath] = nextContent;
   }
 
-  // Generate Dynamic Emails
+  // 1. DYNAMIC EMAILS: Random subjects tied to employee names
   const mailFiles = [];
-  const numEmails = Math.floor(Math.random() * 4) + 2; 
+  const numEmails = Math.floor(Math.random() * 4) + 2; // 2 to 5 emails per server
   for(let i=0; i < numEmails; i++) {
     const sub = EMAIL_SUBJECTS[Math.floor(Math.random() * EMAIL_SUBJECTS.length)];
     const emp = org.employees[Math.floor(Math.random() * org.employees.length)];
@@ -71,7 +47,7 @@ export const generateOrgFileSystem = (org, tier, layout) => {
   }
   contents[fullFilePath] = fileContent;
 
-  // Power-Up Spawns (Guarantee at least 1 consumable)
+  // 2. POWER-UP SPAWNS: Guarantee at least 1 consumable per node!
   const dirs = Object.keys(filesObj).filter(d => d !== '/');
   const randomDir = () => dirs[Math.floor(Math.random() * dirs.length)] || '/';
   
@@ -79,10 +55,11 @@ export const generateOrgFileSystem = (org, tier, layout) => {
   if (tier === 'high' || tier === 'elite') possiblePowerups.push('0day_poc.sh');
   if (tier === 'low' || tier === 'mid') possiblePowerups.push('wallet.dat');
 
+  // Guarantee one random power-up
   const guaranteed = possiblePowerups[Math.floor(Math.random() * possiblePowerups.length)];
   filesObj[randomDir()].push(guaranteed);
 
-  // Chance for bonus power-ups
+  // Chance for even more power-ups hidden around the system
   if (Math.random() < 0.20 && guaranteed !== 'decoy.bin') filesObj[randomDir()].push('decoy.bin');
   if (Math.random() < 0.15 && guaranteed !== 'burner.ovpn') filesObj[randomDir()].push('burner.ovpn');
   if ((tier === 'high' || tier === 'elite') && Math.random() < 0.15 && guaranteed !== '0day_poc.sh') filesObj[randomDir()].push('0day_poc.sh');
@@ -91,9 +68,6 @@ export const generateOrgFileSystem = (org, tier, layout) => {
   return { files: filesObj, contents };
 };
 
-// ==========================================
-// 3. TARGET GENERATOR
-// ==========================================
 export const generateNewTarget = (forcedTier = null, parentIP = null, directorMods = null) => {
   const octet = () => Math.floor(Math.random() * 255);
   const ip = `${octet()}.${octet()}.${octet()}.${octet()}`;
@@ -117,7 +91,7 @@ export const generateNewTarget = (forcedTier = null, parentIP = null, directorMo
   else if (sec === 'mid') val = Math.floor(Math.random() * 20000 + 10000);
   else val = Math.floor(Math.random() * 4000 + 1000);
 
-  const org = generateOrgNarrative(sec); 
+  const org = generateOrgNarrative(sec); // Assuming this is in the same file
   const { files, contents } = generateOrgFileSystem(org, sec, layout);
 
   const exploits = [ { port: 22, svc: 'ssh', exp: 'hydra' }, { port: 80, svc: 'http', exp: 'sqlmap' }, { port: 445, svc: 'smb', exp: 'msfconsole' }, { port: 8080, svc: 'http-alt', exp: 'curl' } ];
@@ -131,7 +105,7 @@ export const generateNewTarget = (forcedTier = null, parentIP = null, directorMo
       parentIP, files, contents, org, 
       blueTeam: { alertLevel: 0, patchedVulns: [], changedPasswords: [], activeHunting: false, lastIncident: null }, 
       commsGenerated: false, slackChannelGenerated: false,
-      targetFile: layout.file
+      targetFile: layout.file // 3. We save the exact target file here so the AI can read it!
     }
   };
 };
