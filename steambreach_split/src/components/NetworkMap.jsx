@@ -121,9 +121,8 @@ export default function NetworkMap({
       <style>{`
         @keyframes stream { to { stroke-dashoffset: -40; } }
         @keyframes streamFast { to { stroke-dashoffset: -40; } }
-        @keyframes radarSweep { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* New idle pulse that DOES NOT move the node physically */
+        /* Idle pulse that DOES NOT move the node physically */
         @keyframes nodeIdlePulse {
           0%, 100% { opacity: 0.8; }
           50% { opacity: 1; filter: drop-shadow(0 0 8px currentColor); }
@@ -133,18 +132,9 @@ export default function NetworkMap({
         .data-stream { stroke-dasharray: 4, 12; animation: stream 1s linear infinite; }
         .proxy-stream { stroke-dasharray: 6, 8; animation: streamFast 0.8s linear infinite; }
         
-        /* Radar cone rotating in the background */
-        .radar-cone {
-          position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-          background: conic-gradient(from 0deg, transparent 70%, ${COLORS.primary}15 95%, ${COLORS.primary}40 100%);
-          animation: radarSweep 8s linear infinite;
-          pointer-events: none; z-index: 1;
-        }
-
         .map-vignette { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, transparent 30%, ${COLORS.bgDark} 100%); pointer-events: none; z-index: 10; }
       `}</style>
 
-      {expanded && <div className="radar-cone" />}
       <div className="map-vignette" />
 
       <svg ref={svgRef} width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>
@@ -246,10 +236,7 @@ export default function NetworkMap({
                 onMouseEnter={() => expanded && setHoveredNode(ip)} 
                 onMouseLeave={() => setHoveredNode(null)}
               >
-                {/* SVG Coordinate Anchor wrapper so we can scale from the exact center */}
                 <svg x={node.x} y={node.y} style={{ overflow: 'visible' }}>
-                  
-                  {/* The scale transform handles the Hover Magnetism. No translateY = no dodging the mouse! */}
                   <g 
                     style={{ 
                       color: nodeColor,
@@ -259,20 +246,13 @@ export default function NetworkMap({
                     }}
                   >
                     
-                    {/* Active Target Ring */}
                     {isActive && expanded && <circle cx="0" cy="0" r="12" fill="none" stroke={COLORS.primary} strokeWidth="1" className="data-stream" />}
-                    
-                    {/* Proxy Shield Ring */}
                     {isProxy && <circle cx="0" cy="0" r={r + 4} fill="none" stroke={COLORS.proxy} strokeWidth="1.5" opacity="0.4" className="proxy-stream" />}
                     
-                    {/* The core node */}
                     <circle cx="0" cy="0" r={r} fill={nodeColor} />
                     
-                    {/* Node center detail */}
                     {expanded && r >= 5 && <circle cx="0" cy="0" r={r/2} fill="#111" opacity="0.8" />}
-                    
-                    {/* Hover text label */}
-                    {isHovered && expanded && (
+                    {expanded && isProxy && (
                       <text x="0" y="-12" fill="#fff" fontSize="6px" textAnchor="middle" fontFamily="inherit" style={{ fontWeight: 'bold', filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.8))' }}>
                          {node.sec?.toUpperCase()} NODE
                       </text>
