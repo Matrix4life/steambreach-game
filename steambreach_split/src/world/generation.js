@@ -1,111 +1,37 @@
-// ==========================================
-// 1. LORE & NARRATIVE GENERATOR
-// ==========================================
-export const generateOrgNarrative = (tier) => {
-  const prefixes = ['Aegis', 'Omni', 'Nexus', 'Stryker', 'Apex', 'Quantum', 'Synapse', 'Vanguard', 'Cyber', 'Neo'];
-  const suffixes = ['Corp', 'Systems', 'Dynamics', 'Logistics', 'Solutions', 'Global', 'Network', 'Syndicate'];
-  const orgName = `${prefixes[Math.floor(Math.random() * prefixes.length)]} ${suffixes[Math.floor(Math.random() * suffixes.length)]}`;
-  
-  const types = tier === 'elite' ? ['Banking', 'Defense', 'Intelligence'] : tier === 'high' ? ['Tech', 'Finance', 'Energy'] : ['Retail', 'Media', 'Logistics'];
-  const type = types[Math.floor(Math.random() * types.length)];
-  
-  const firstNames = ['John', 'Sarah', 'Mike', 'Elena', 'David', 'Chloe', 'Alex', 'Rachel', 'Marcus', 'Priya'];
-  const lastNames = ['Smith', 'Chen', 'Rodriguez', 'Kim', 'Patel', 'Davis', 'Wright', 'Silva', 'Wong', 'Olsen'];
-  
-  const employees = Array.from({ length: 4 }).map(() => ({
-    name: `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`,
-    role: ['Sysadmin', 'DevOps', 'HR', 'Analyst'][Math.floor(Math.random() * 4)]
-  }));
-  
-  return { orgName, type, employees };
-};
+// Split from UpdatedPeople.jsx
 
-// ==========================================
-// 2. FILE SYSTEM GENERATOR
-// ==========================================
-const EMAIL_SUBJECTS = [
-  'urgent_login_reset', 'fwd_invoice_q3', 'meeting_notes', 'lunch_order',
-  'project_alpha_specs', 'onboarding_doc', 'server_logs_error', 'draft_v2',
-  'hr_complaint', 'budget_approval', 'client_list_updated', 'q4_projections',
-  'security_audit', 'vpn_access_keys', 'holiday_party', 'termination_notice'
-];
+import { generateOrgNarrative, generateOrgFileSystem } from '../ai/agents';
+import { pickWeightedTier } from '../ai/director';
 
-export const generateOrgFileSystem = (org, tier, layout) => {
-  let filesObj = { '/': [`${layout.dirs[0]}/`, 'mail/', 'tmp/'] };
-  let contents = {};
-  let buildPath = '';
-
-  // Build the target directory path
-  for (let i = 0; i < layout.dirs.length; i++) {
-    const isLast = i === layout.dirs.length - 1;
-    const dirName = layout.dirs[i];
-    const nextContent = isLast ? [layout.file] : [`${layout.dirs[i + 1]}/`];
-    buildPath += `/${dirName}`;
-    filesObj[buildPath] = nextContent;
-  }
-
-  // Generate Dynamic Emails
-  const mailFiles = [];
-  const numEmails = Math.floor(Math.random() * 4) + 2; 
-  for(let i=0; i < numEmails; i++) {
-    const sub = EMAIL_SUBJECTS[Math.floor(Math.random() * EMAIL_SUBJECTS.length)];
-    const emp = org.employees[Math.floor(Math.random() * org.employees.length)];
-    const filename = `${sub}_${emp.name.split(' ')[0].toLowerCase()}.eml`;
-    
-    if(!mailFiles.includes(filename)) {
-      mailFiles.push(filename);
-      contents[`/mail/${filename}`] = '[LORE_PENDING]';
-    }
-  }
-  filesObj['/mail'] = mailFiles;
-
-  filesObj['/tmp'] = ['.bash_history', 'notes.tmp'];
-  contents['/tmp/.bash_history'] = '[LORE_PENDING]';
-  contents['/tmp/notes.tmp'] = '[LORE_PENDING]';
-
-  // Core target file
-  const fullFilePath = `${buildPath}/${layout.file}`;
-  let fileContent = (tier === 'high' || tier === 'elite') ? '[LOCKED] [PENDING_GENERATION]' : '[PENDING_GENERATION]';
-  if (layout.file.endsWith('.bak') || layout.file.endsWith('.hashes')) {
-    fileContent = (tier === 'high' || tier === 'elite') ? '[LOCKED] [HASH] SHA-512 System Hashes: df98a2b1c...' : '[HASH] NTLM User Hashes: 8f2b3c...';
-  }
-  contents[fullFilePath] = fileContent;
-
-  // Power-Up Spawns (Guarantee at least 1 consumable)
-  const dirs = Object.keys(filesObj).filter(d => d !== '/');
-  const randomDir = () => dirs[Math.floor(Math.random() * dirs.length)] || '/';
-  
-  const possiblePowerups = ['decoy.bin', 'burner.ovpn'];
-  if (tier === 'high' || tier === 'elite') possiblePowerups.push('0day_poc.sh');
-  if (tier === 'low' || tier === 'mid') possiblePowerups.push('wallet.dat');
-
-  const guaranteed = possiblePowerups[Math.floor(Math.random() * possiblePowerups.length)];
-  filesObj[randomDir()].push(guaranteed);
-
-  // Chance for bonus power-ups
-  if (Math.random() < 0.20 && guaranteed !== 'decoy.bin') filesObj[randomDir()].push('decoy.bin');
-  if (Math.random() < 0.15 && guaranteed !== 'burner.ovpn') filesObj[randomDir()].push('burner.ovpn');
-  if ((tier === 'high' || tier === 'elite') && Math.random() < 0.15 && guaranteed !== '0day_poc.sh') filesObj[randomDir()].push('0day_poc.sh');
-  if ((tier === 'low' || tier === 'mid') && Math.random() < 0.25 && guaranteed !== 'wallet.dat') filesObj[randomDir()].push('wallet.dat');
-
-  return { files: filesObj, contents };
-};
-
-// ==========================================
-// 3. TARGET GENERATOR
-// ==========================================
-export const generateNewTarget = (forcedTier = null, parentIP = null, directorMods = null) => {
+const generateNewTarget = (forcedTier = null, parentIP = null, directorMods = null) => {
   const octet = () => Math.floor(Math.random() * 255);
   const ip = `${octet()}.${octet()}.${octet()}.${octet()}`;
   const tiers = ['low', 'mid', 'high'];
-  const sec = forcedTier || (directorMods ? tiers[Math.floor(Math.random() * tiers.length)] : tiers[Math.floor(Math.random() * tiers.length)]);
+  const sec = forcedTier || (directorMods ? pickWeightedTier(directorMods.tierWeights) : tiers[Math.floor(Math.random() * tiers.length)]);
   const activeSec = sec === 'elite' ? 'high' : sec;
 
   const layouts = {
-    low: [{ dirs: ['home', 'user', 'desktop'], file: 'wallet.txt' }, { dirs: ['temp', 'downloads'], file: 'session.bin' }],
-    mid: [{ dirs: ['var', 'backups', 'daily'], file: 'archive.zip' }, { dirs: ['opt', 'server', 'db'], file: 'db_dump.sql' }, { dirs: ['etc', 'shadow', 'hashes'], file: 'passwd.bak' }],
-    high: [{ dirs: ['sys', 'core', 'vault'], file: 'assets.db' }, { dirs: ['etc', 'shadow', 'hashes'], file: 'sys.hashes' }, { dirs: ['mnt', 'secure'], file: 'incident_report.msg' }],
-    elite: [{ dirs: ['shadow', 'mainframe', 'core'], file: 'blackbox.db' }, { dirs: ['etc', 'security', 'vault'], file: 'root.hashes' }]
+    low: [
+      { dirs: ['home', 'user', 'desktop'], file: 'wallet.txt' },
+      { dirs: ['temp', 'downloads', 'cache'], file: 'session.bin' },
+      { dirs: ['public', 'shares', 'docs'], file: 'emails.txt' }
+    ],
+    mid: [
+      { dirs: ['var', 'backups', 'daily'], file: 'archive.zip' },
+      { dirs: ['opt', 'server', 'db'], file: 'db_dump.sql' },
+      { dirs: ['var', 'log', 'system'], file: 'admin_notes.log' },
+      { dirs: ['etc', 'shadow', 'hashes'], file: 'passwd.bak' }
+    ],
+    high: [
+      { dirs: ['sys', 'core', 'vault'], file: 'assets.db' },
+      { dirs: ['etc', 'shadow', 'hashes'], file: 'sys.hashes' },
+      { dirs: ['mnt', 'secure', 'comms'], file: 'incident_report.msg' }
+    ],
+    elite: [
+      { dirs: ['shadow', 'mainframe', 'core'], file: 'blackbox.db' },
+      { dirs: ['kernel', 'zero', 'ring'], file: 'classified_briefing.txt' },
+      { dirs: ['etc', 'security', 'vault'], file: 'root.hashes' }
+    ]
   };
 
   const tierLayouts = layouts[sec] || layouts['high'];
@@ -117,21 +43,42 @@ export const generateNewTarget = (forcedTier = null, parentIP = null, directorMo
   else if (sec === 'mid') val = Math.floor(Math.random() * 20000 + 10000);
   else val = Math.floor(Math.random() * 4000 + 1000);
 
-  const org = generateOrgNarrative(sec); 
+  const org = generateOrgNarrative(sec);
   const { files, contents } = generateOrgFileSystem(org, sec, layout);
 
-  const exploits = [ { port: 22, svc: 'ssh', exp: 'hydra' }, { port: 80, svc: 'http', exp: 'sqlmap' }, { port: 445, svc: 'smb', exp: 'msfconsole' }, { port: 8080, svc: 'http-alt', exp: 'curl' } ];
+  const exploits = [
+    { port: 22, svc: 'ssh', exp: 'hydra' },
+    { port: 80, svc: 'http', exp: 'sqlmap' },
+    { port: 445, svc: 'smb', exp: 'msfconsole' },
+    { port: 8080, svc: 'http-alt', exp: 'curl' }
+  ];
   const vuln = exploits[Math.floor(Math.random() * exploits.length)];
 
+  const blueTeam = { alertLevel: 0, patchedVulns: [], changedPasswords: [], activeHunting: false, lastIncident: null };
+
   return {
-    ip, data: { 
-      name: org.orgName, sec: activeSec, isHidden: sec === 'elite', port: vuln.port, svc: vuln.svc, exp: vuln.exp, 
-      isHoneypot: Math.random() < (directorMods?.honeypotChance || 0.15), val, 
-      x: `${Math.floor(Math.random() * 85 + 7)}%`, y: `${Math.floor(Math.random() * 55 + 10)}%`, 
-      parentIP, files, contents, org, 
-      blueTeam: { alertLevel: 0, patchedVulns: [], changedPasswords: [], activeHunting: false, lastIncident: null }, 
-      commsGenerated: false, slackChannelGenerated: false,
-      targetFile: layout.file
+    ip,
+    data: {
+      name: org.orgName, sec: activeSec, isHidden: sec === 'elite',
+      port: vuln.port, svc: vuln.svc, exp: vuln.exp,
+      isHoneypot: Math.random() < (directorMods?.honeypotChance || 0.15),
+      val, x: `${Math.floor(Math.random() * 85 + 7)}%`, y: `${Math.floor(Math.random() * 55 + 10)}%`,
+      parentIP, files, contents, org, blueTeam, commsGenerated: false, slackChannelGenerated: false,
     }
   };
+};
+
+const DEFAULT_WORLD = {
+  local: {
+    files: { '/': ['home/'], '/home': ['operator/'], '/home/operator': ['readme.txt', 'contracts/'], '/home/operator/contracts': [] },
+    contents: { '/home/operator/readme.txt': `STEAMBREACH OPERATOR TERMINAL v3.0\n────────────────────────────────────\nSTART: Run 'nmap' to discover your first target.\nUse [TAB] to open the Command Reference Manual at any time.` }
+  }
+};
+
+// ==========================================
+// 7. UI COMPONENTS
+
+export {
+  generateNewTarget,
+  DEFAULT_WORLD,
 };
