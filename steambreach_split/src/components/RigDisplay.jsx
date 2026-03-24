@@ -1,15 +1,18 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { COLORS } from '../constants/gameConstants';
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
-// We support your existing base tiers and will gracefully handle new upgrades
+// Expanded Tiers to include the new custom parts so the UI recognizes them
 const TIERS = {
+  Case: ['ATXCase'],
   CPU: ['CPU', 'CPU_MK2', 'CPU_MK3'],
   GPU: ['GPU', 'GPU_MK2', 'GPU_MK3', 'Neural Net Accelerator'], 
   RAM: ['RAM', 'RAM_MK2', 'RAM_MK3'],
-  SSD: ['Storage', 'Storage_MK2', 'Storage_MK3'],
+  Storage: ['Storage', 'Storage_MK2', 'Storage_MK3'],
   PSU: ['PSU', 'PSU_MK2', 'PSU_MK3'],
+  Cooling: ['Cooling'],
+  RGB: ['RGB']
 };
 
 function getTier(inventory, slot) {
@@ -26,15 +29,15 @@ function getTier(inventory, slot) {
 // ----------------------------------------------------
 const IsometricFan = ({ cx, cy, r, isRGB, heat }) => {
   const fanDur = heat > 75 ? '0.15s' : (heat > 40 ? '0.4s' : '1.5s');
-  const rgbClass = isRGB ? 'rgb-anim' : '';
+  const rgbClass = isRGB ? 'rgb-anim-stroke' : '';
   const fanColor = isRGB ? 'currentColor' : (COLORS.primaryDim || '#4a8b96');
   
   return (
     <g transform={`translate(${cx}, ${cy})`}>
       <circle cx="0" cy="0" r={r} fill="#0a0a0f" stroke={fanColor} strokeWidth="2" className={rgbClass} />
       <g style={{ transformOrigin: 'center', animation: `fan-spin ${fanDur} linear infinite` }}>
-        <path d={`M 0 -${r-4} Q ${r/2} 0 0 ${r-4} Q -${r/2} 0 0 -${r-4}`} fill={fanColor} className={rgbClass} opacity="0.8" />
-        <path d={`M -${r-4} 0 Q 0 ${r/2} ${r-4} 0 Q 0 -${r/2} -${r-4} 0`} fill={fanColor} className={rgbClass} opacity="0.8" />
+        <path d={`M 0 -${r-4} Q ${r/2} 0 0 ${r-4} Q -${r/2} 0 0 -${r-4}`} fill={fanColor} className={isRGB ? 'rgb-anim-fill' : ''} opacity="0.8" />
+        <path d={`M -${r-4} 0 Q 0 ${r/2} ${r-4} 0 Q 0 -${r/2} -${r-4} 0`} fill={fanColor} className={isRGB ? 'rgb-anim-fill' : ''} opacity="0.8" />
         <circle cx="0" cy="0" r={r/4} fill="#111" />
       </g>
     </g>
@@ -45,14 +48,12 @@ const IsometricFan = ({ cx, cy, r, isRGB, heat }) => {
 // THE 3D RIG MODEL ENGINE
 // ----------------------------------------------------
 const RigModel = ({ rotX, rotY, scale, inventory, heat, isProcessing }) => {
-  // Gracefully check for visual upgrades even if they aren't in standard Tiers
-  const hasCase = inventory.some(i => typeof i === 'string' && (i.includes('Case') || i.includes('ATX') || i.includes('Chassis')));
-  const hasCooling = inventory.some(i => typeof i === 'string' && (i.includes('Cooling') || i.includes('Liquid')));
-  const hasRGB = inventory.some(i => typeof i === 'string' && (i.includes('RGB') || i.includes('ARGB')));
-  
+  const hasCase = getTier(inventory, 'Case') > 0;
   const hasCPU = getTier(inventory, 'CPU') > 0;
   const hasGPU = getTier(inventory, 'GPU') > 0;
   const hasRAM = getTier(inventory, 'RAM') > 0;
+  const hasCooling = getTier(inventory, 'Cooling') > 0;
+  const hasRGB = getTier(inventory, 'RGB') > 0;
 
   const isHot = heat >= 75;
   const isWarm = heat >= 40;
@@ -88,53 +89,56 @@ const RigModel = ({ rotX, rotY, scale, inventory, heat, isProcessing }) => {
       
       {/* 4. FRONT PANEL (Intake Fans) */}
       <div style={{ ...panelStyle, width: '160px', height: '340px', background: hasCase ? 'rgba(15,15,20,0.9)' : caseOuter, border: `2px solid ${COLORS.border}`, transform: 'translateZ(160px)' }}>
-        {hasCase && (
+        {hasCase ? (
           <svg width="160" height="340">
             <IsometricFan cx={80} cy={80} r={55} isRGB={hasRGB} heat={heat} />
             <IsometricFan cx={80} cy={200} r={55} isRGB={hasRGB} heat={heat} />
           </svg>
+        ) : (
+          hasRGB && <div className="rgb-anim-bg" style={{ width: '100%', height: '100%', opacity: 0.3 }} />
         )}
       </div>
       
       {/* 5. RIGHT WALL (Solid Panel behind motherboard) */}
       <div style={{ ...panelStyle, width: '320px', height: '340px', background: caseOuter, transform: 'translateX(80px) rotateY(90deg)' }} />
       
-      {/* 6. LEFT WALL (Glass Panel - The viewport) */}
+      {/* 6. LEFT WALL (Glass Panel / Vent) */}
       <div style={{ ...panelStyle, width: '320px', height: '340px', background: glassColor, border: hasCase ? '4px solid #111' : 'none', backdropFilter: hasCase ? 'blur(2px)' : 'none', transform: 'translateX(-80px) rotateY(-90deg)' }}>
-        {hasRGB && hasCase && <div className="rgb-anim" style={{ width: '100%', height: '100%', border: '4px solid currentColor', opacity: 0.8, boxSizing: 'border-box' }} />}
+        {hasRGB && hasCase && <div className="rgb-anim-border" style={{ width: '100%', height: '100%', border: '4px solid currentColor', opacity: 0.8, boxSizing: 'border-box' }} />}
+        {!hasCase && (
+           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+             <div style={{ width: '150px', height: '200px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {Array.from({length: 12}).map((_, i) => <div key={i} className={hasRGB ? "rgb-anim-bg" : ""} style={{ height: '8px', background: hasRGB ? 'currentColor' : '#a3a097', opacity: 0.8 }} />)}
+             </div>
+           </div>
+        )}
       </div>
 
       {/* --- INTERNAL PARALLAX LAYERS --- */}
       
-      {/* LAYER A: MOTHERBOARD (Pushed deep near the right wall) */}
+      {/* LAYER A: MOTHERBOARD */}
       <div style={{ ...panelStyle, width: '320px', height: '340px', transform: 'translateX(60px) rotateY(-90deg)' }}>
          <svg width="320" height="340">
-           {/* PCB */}
            <rect x="20" y="20" width="280" height="300" rx="4" fill={moboColor} stroke="#111" strokeWidth="2" />
-           {/* CPU Socket */}
            <rect x="70" y="60" width="80" height="80" fill="#2d2a2e" stroke="#111" strokeWidth="2" />
            {hasCPU && <rect x="85" y="75" width="50" height="50" fill={COLORS.primary} opacity={cpuOpacity} stroke="#fff" style={{ transition: 'opacity 0.1s' }} />}
            
-           {/* RAM */}
            <rect x="180" y="50" width="8" height="110" fill="#111" />
            <rect x="200" y="50" width="8" height="110" fill="#111" />
            {hasRAM && <rect x="182" y="52" width="4" height="106" fill={COLORS.textDim} />}
            {hasRAM && <rect x="202" y="52" width="4" height="106" fill={COLORS.textDim} />}
 
-           {/* PCIe Slots */}
            <rect x="50" y="190" width="200" height="12" fill="#111" />
            <rect x="50" y="230" width="200" height="12" fill="#111" />
 
-           {/* PSU Shroud */}
            <rect x="20" y="260" width="280" height="60" fill={psuColor} stroke="#111" strokeWidth="2" />
            <text x="240" y="295" fill="#555" fontSize="16" fontWeight="bold" fontFamily="monospace">850W</text>
 
-           {/* Motherboard RGB Traces */}
-           {hasRGB && <rect x="22" y="22" width="276" height="296" fill="none" stroke="currentColor" strokeWidth="3" className="rgb-anim" opacity="0.5" />}
+           {hasRGB && <rect x="22" y="22" width="276" height="296" fill="none" strokeWidth="3" className="rgb-anim-stroke" opacity="0.8" />}
          </svg>
       </div>
 
-      {/* LAYER B: GPU (Sticking out from motherboard) */}
+      {/* LAYER B: GPU */}
       {hasGPU && (
         <div style={{ ...panelStyle, width: '320px', height: '340px', transform: 'translateX(20px) rotateY(-90deg)' }}>
           <svg width="320" height="340">
@@ -144,13 +148,13 @@ const RigModel = ({ rotX, rotY, scale, inventory, heat, isProcessing }) => {
               <IsometricFan cx={40} cy={40} r={26} isRGB={hasRGB} heat={heat} />
               <IsometricFan cx={110} cy={40} r={26} isRGB={hasRGB} heat={heat} />
               <IsometricFan cx={180} cy={40} r={26} isRGB={hasRGB} heat={heat} />
-              {hasRGB && <rect x="0" y="0" width="220" height="80" rx="6" fill="none" stroke="currentColor" strokeWidth="3" className="rgb-anim" />}
+              {hasRGB && <rect x="0" y="0" width="220" height="80" rx="6" fill="none" strokeWidth="3" className="rgb-anim-stroke" />}
             </g>
           </svg>
         </div>
       )}
 
-      {/* LAYER C: COOLING PIPES (Closest to glass) */}
+      {/* LAYER C: COOLING PIPES */}
       <div style={{ ...panelStyle, width: '320px', height: '340px', transform: 'translateX(40px) rotateY(-90deg)' }}>
          <svg width="320" height="340">
            {hasCooling ? (
@@ -166,8 +170,8 @@ const RigModel = ({ rotX, rotY, scale, inventory, heat, isProcessing }) => {
              <g transform="translate(110, 100)">
                 <circle cx="0" cy="0" r="30" fill="#222" stroke="#555" strokeWidth="2" />
                 <g style={{ transformOrigin: 'center', animation: `fan-spin ${heat > 40 ? '0.4s' : '1.5s'} linear infinite` }}>
-                  <path d="M 0 -20 Q 10 0 0 20 Q -10 0 0 -20" fill={COLORS.textDim} />
-                  <path d="M -20 0 Q 0 10 20 0 Q 0 -10 -20 0" fill={COLORS.textDim} />
+                  <path d="M 0 -20 Q 10 0 0 20 Q -10 0 0 -20" fill={COLORS.textDim} className={hasRGB ? "rgb-anim-fill" : ""} />
+                  <path d="M -20 0 Q 0 10 20 0 Q 0 -10 -20 0" fill={COLORS.textDim} className={hasRGB ? "rgb-anim-fill" : ""} />
                 </g>
              </g>
            )}
@@ -213,18 +217,19 @@ export default function RigDisplay({
   const isHot = safeHeat >= 75;
   const isWarm = safeHeat >= 40;
 
-  // Dimensions based on parent expectations
+  // Dimensions
   const width = expanded ? 500 : 235;
   const height = expanded ? 250 : 84;
 
-  // Calculate synthetic loads for visual flair
-  const installed = useMemo(() => ({
-    CPU: getTier(inventory, 'CPU') > 0,
-    GPU: getTier(inventory, 'GPU') > 0,
-    RAM: getTier(inventory, 'RAM') > 0,
-    SSD: getTier(inventory, 'SSD') > 0,
-    PSU: getTier(inventory, 'PSU') > 0,
-  }), [inventory]);
+  // The comprehensive list of all parts to track
+  const HARDWARE_SLOTS = ['Case', 'CPU', 'GPU', 'RAM', 'Cooling', 'Storage', 'PSU', 'RGB'];
+
+  // Check which are installed
+  const installed = useMemo(() => {
+    let obj = {};
+    HARDWARE_SLOTS.forEach(slot => obj[slot] = getTier(inventory, slot) > 0);
+    return obj;
+  }, [inventory]);
 
   const cpuPct = installed.CPU ? clamp(Math.round(safeHeat * 0.72 + (isProcessing ? 10 : 0)), 8, 100) : 0;
   const gpuPct = installed.GPU ? clamp(Math.round(safeHeat * 0.9 + (isProcessing ? 12 : 0)), 10, 100) : 0;
@@ -232,7 +237,6 @@ export default function RigDisplay({
   const statusText = isHot ? 'OVERHEAT' : isWarm ? 'ELEVATED' : 'STABLE';
   const statusColor = isHot ? (COLORS.danger || '#ff6188') : isWarm ? (COLORS.warning || '#ffd866') : (COLORS.secondary || '#a9dc76');
 
-  // Interactive Drag Handlers for 3D View
   const handleMouseDown = (e) => { setIsDragging(true); setStartPos({ x: e.clientX, y: e.clientY }); };
   const handleMouseMove = (e) => {
     if (!isDragging) return;
@@ -257,21 +261,27 @@ export default function RigDisplay({
         transition: 'width 0.25s ease, height 0.25s ease',
         cursor: expanded ? 'default' : 'pointer',
         boxShadow: isHot ? `0 0 12px ${COLORS.danger}20, inset 0 0 18px ${COLORS.danger}08` : `inset 0 0 18px rgba(0,0,0,0.35)`,
-        userSelect: 'none' // Prevent text selection while dragging
+        userSelect: 'none'
       }}
       onClick={!expanded ? toggleExpand : undefined}
     >
       <style>{`
         @keyframes fan-spin { 100% { transform: rotate(360deg); } }
         @keyframes flow { to { stroke-dashoffset: -20; } }
+        
+        /* Fool-proof animation that affects colors, strokes, backgrounds, and borders! */
         @keyframes rgb-cycle {
-          0% { color: ${COLORS.danger}; stroke: ${COLORS.danger}; box-shadow: 0 0 30px ${COLORS.danger}60; }
-          33% { color: ${COLORS.secondary}; stroke: ${COLORS.secondary}; box-shadow: 0 0 30px ${COLORS.secondary}60; }
-          66% { color: ${COLORS.primary}; stroke: ${COLORS.primary}; box-shadow: 0 0 30px ${COLORS.primary}60; }
-          100% { color: ${COLORS.danger}; stroke: ${COLORS.danger}; box-shadow: 0 0 30px ${COLORS.danger}60; }
+          0%   { color: ${COLORS.danger}; stroke: ${COLORS.danger}; background-color: ${COLORS.danger}; border-color: ${COLORS.danger}; fill: ${COLORS.danger}; }
+          33%  { color: ${COLORS.secondary}; stroke: ${COLORS.secondary}; background-color: ${COLORS.secondary}; border-color: ${COLORS.secondary}; fill: ${COLORS.secondary}; }
+          66%  { color: ${COLORS.primary}; stroke: ${COLORS.primary}; background-color: ${COLORS.primary}; border-color: ${COLORS.primary}; fill: ${COLORS.primary}; }
+          100% { color: ${COLORS.danger}; stroke: ${COLORS.danger}; background-color: ${COLORS.danger}; border-color: ${COLORS.danger}; fill: ${COLORS.danger}; }
         }
         @keyframes heat-pulse { 0%, 100% { background: ${COLORS.danger}10; } 50% { background: ${COLORS.danger}30; } }
-        .rgb-anim { animation: rgb-cycle 4s linear infinite; }
+        
+        .rgb-anim-stroke { animation: rgb-cycle 4s linear infinite; stroke: currentColor; }
+        .rgb-anim-fill { animation: rgb-cycle 4s linear infinite; fill: currentColor; }
+        .rgb-anim-bg { animation: rgb-cycle 4s linear infinite; background-color: currentColor; }
+        .rgb-anim-border { animation: rgb-cycle 4s linear infinite; border-color: currentColor; }
         .flow { stroke-dasharray: 10, 5; animation: flow 0.5s linear infinite; }
       `}</style>
 
@@ -292,7 +302,6 @@ export default function RigDisplay({
       {!expanded ? (
         <div style={{ position: 'absolute', inset: 0, padding: '12px', display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div style={{ width: '60px', height: '60px', perspective: '400px', position: 'relative' }}>
-             {/* We reuse the massive 3D model, but scaled way down! */}
              <RigModel rotX={-15} rotY={-35} scale={0.16} inventory={inventory} heat={heat} isProcessing={isProcessing} />
           </div>
           <div>
@@ -325,9 +334,9 @@ export default function RigDisplay({
           <div style={{ width: '220px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', boxSizing: 'border-box', background: 'rgba(8,12,18,0.6)', borderLeft: `1px solid ${COLORS.border}` }}>
              <div style={{ color: COLORS.primary, fontSize: '11px', letterSpacing: '2px' }}>HARDWARE DIAGNOSTICS</div>
              
-             {/* Component Slot Selectors */}
-             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {['CPU', 'GPU', 'RAM', 'SSD', 'PSU'].map(slot => {
+             {/* Component Slot Selectors - NOW INCLUDES ALL 8 PARTS */}
+             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', overflowY: 'auto', paddingRight: '4px' }}>
+                {HARDWARE_SLOTS.map(slot => {
                    const isInst = installed[slot];
                    const isSel = selected === slot;
                    return (
