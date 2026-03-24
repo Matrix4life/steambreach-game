@@ -6,7 +6,9 @@ const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 export default function NetworkMap({ 
   world = {}, botnet = [], proxies = [], looted = [], 
   targetIP, trace = 0, inventory = [], selectNodeFromMap, 
-  expanded, toggleExpand, currentRegion = 'UNKNOWN' 
+  expanded, toggleExpand, currentRegion = 'UNKNOWN',
+  consumables = { decoy: 0, burner: 0, zeroday: 0 }, // NEW PROP
+  money = 0 // NEW PROP
 }) {
   const svgRef = useRef(null);
   const [hoveredNode, setHoveredNode] = useState(null);
@@ -17,14 +19,41 @@ export default function NetworkMap({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hasDragged, setHasDragged] = useState(false);
 
-  // Are we currently inside a server?
   const isHacking = Boolean(targetIP);
+
+  // --- LOOT ANIMATION STATE ---
+  const [lootNotifs, setLootNotifs] = useState([]);
+  const prevConsumables = useRef(consumables);
+  const prevMoney = useRef(money);
+
+  // Trigger animation when items/money increase
+  useEffect(() => {
+    const newNotifs = [];
+    if (consumables.decoy > prevConsumables.current.decoy) newNotifs.push({ text: 'TRACE DECOY EXTRACTED', color: COLORS.secondary });
+    if (consumables.burner > prevConsumables.current.burner) newNotifs.push({ text: 'BURNER VPN EXTRACTED', color: COLORS.secondary });
+    if (consumables.zeroday > prevConsumables.current.zeroday) newNotifs.push({ text: 'ZERO-DAY WEAPONIZED', color: COLORS.danger });
+    
+    const moneyDiff = money - prevMoney.current;
+    if (moneyDiff > 0) newNotifs.push({ text: `$${moneyDiff.toLocaleString()} XMR ACQUIRED`, color: COLORS.warning });
+
+    if (newNotifs.length > 0) {
+      const timestampedNotifs = newNotifs.map(n => ({ ...n, id: Math.random().toString() }));
+      setLootNotifs(prev => [...prev, ...timestampedNotifs]);
+      
+      // Auto-remove the notification after 2.5 seconds
+      setTimeout(() => {
+        setLootNotifs(prev => prev.filter(p => !timestampedNotifs.find(t => t.id === p.id)));
+      }, 2500);
+    }
+
+    prevConsumables.current = consumables;
+    prevMoney.current = money;
+  }, [consumables, money]);
 
   useEffect(() => {
     if (!expanded) setCam({ x: 0, y: 0, z: 1 });
   }, [expanded]);
 
-  // Smoother Zoom Math
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return;
@@ -32,12 +61,10 @@ export default function NetworkMap({
     const handleNativeWheel = (e) => {
       if (!expanded) return;
       e.preventDefault();
-      
       const zoomFactor = Math.exp(-e.deltaY * 0.002);
       
       setCam(prev => {
         const newZ = clamp(prev.z * zoomFactor, 0.2, 5); 
-        
         const rect = el.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -55,7 +82,6 @@ export default function NetworkMap({
     return () => el.removeEventListener('wheel', handleNativeWheel);
   }, [expanded]);
 
-  // --- MOUSE HANDLERS FOR PANNING ---
   const handleMouseDown = (e) => {
     if (!expanded) return;
     setIsDragging(true);
@@ -77,7 +103,6 @@ export default function NetworkMap({
     selectNodeFromMap(ip);
   };
 
-  // --- PARALLAX ASSETS GENERATION ---
   const dustParticles = useMemo(() => {
     return Array.from({ length: 80 }).map((_, i) => ({
       id: i,
@@ -97,7 +122,6 @@ export default function NetworkMap({
     return lines;
   }, []);
 
-  // --- DATA PREP ---
   const proxyChain = proxies.filter(ip => world[ip] && !world[ip].isHidden);
   const mapHeight = expanded ? '350px' : '80px';
   const nodeCount = Object.keys(world).filter(k => k !== 'local' && !world[k].isHidden).length;
@@ -129,6 +153,18 @@ export default function NetworkMap({
           0%, 100% { opacity: 0.8; }
           50% { opacity: 1; filter: drop-shadow(0 0 8px currentColor); }
         }
+
+        /* --- THE NEW LOOT ANIMATION --- */
+        @keyframes floatUpLoot {
+          0% { opacity: 0; transform: translateY(20px) scale(0.9); }
+          15% { opacity: 1; transform: translateY(0) scale(1.1); filter: brightness(1.5); }
+          30% { transform: translateY(-5px) scale(1); filter: brightness(1); }
+          80% { opacity: 1; transform: translateY(-15px) scale(1); }
+          100% { opacity: 0; transform: translateY(-30px) scale(0.9); }
+        }
+        .loot-notif { 
+          animation: floatUpLoot 2.5s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; 
+        }
         
         .data-stream { stroke-dasharray: 4, 12; animation: stream 1s linear infinite; }
         .proxy-stream { stroke-dasharray: 6, 8; animation: streamFast 0.8s linear infinite; }
@@ -137,14 +173,34 @@ export default function NetworkMap({
         .is-hacking .map-vignette { opacity: 0.6; }
       `}</style>
 
-      {/* --- THE GIF BACKGROUND OVERLAY --- */}
+      {/* --- FLOATING LOOT OVERLAY --- */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+        {lootNotifs.map(notif => (
+          <div key={notif.id} className="loot-notif" style={{ 
+            color: notif.color, 
+            fontSize: expanded ? '16px' : '10px', 
+            fontWeight: 'bold', 
+            letterSpacing: '2px', 
+            background: 'rgba(0,0,0,0.85)', 
+            padding: '8px 16px', 
+            border: `1px solid ${notif.color}`, 
+            borderRadius: '4px', 
+            marginBottom: '8px', 
+            boxShadow: `0 0 15px ${notif.color}40`, 
+            textShadow: `0 0 5px ${notif.color}` 
+          }}>
+            [+] {notif.text}
+          </div>
+        ))}
+      </div>
+
       <div style={{
         position: 'absolute', inset: 0, zIndex: 1,
-        backgroundImage: "url('/giphy.gif')", // Make sure your GIF is named this in the public folder
+        backgroundImage: "url('/giphy.gif')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        opacity: isHacking ? 0.35 : 0, // Dims the GIF slightly so you can still see the grid
-        mixBlendMode: 'screen', // Blends the colors nicely with the dark background
+        opacity: isHacking ? 0.35 : 0, 
+        mixBlendMode: 'screen',
         transition: 'opacity 0.5s ease',
         pointerEvents: 'none'
       }} />
@@ -152,27 +208,21 @@ export default function NetworkMap({
       <div className={`map-vignette ${isHacking ? 'is-hacking' : ''}`} />
 
       <svg ref={svgRef} width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>
-        
-        {/* PARALLAX LAYER 1: Deep Space Dust */}
         <g style={{ transform: `translate(${cam.x * 0.2}px, ${cam.y * 0.2}px) scale(${cam.z * 0.6})`, transformOrigin: '0 0', opacity: isHacking ? 0.2 : 1, transition: 'opacity 0.5s ease' }}>
           {dustParticles.map(p => (
              <circle key={p.id} cx={p.cx} cy={p.cy} r={p.r} fill={COLORS.primary} opacity={p.opacity} />
           ))}
         </g>
 
-        {/* PARALLAX LAYER 2: The Grid */}
         <g style={{ transform: `translate(${cam.x * 0.5}px, ${cam.y * 0.5}px) scale(${cam.z * 0.8})`, transformOrigin: '0 0', opacity: isHacking ? 0.3 : 1, transition: 'opacity 0.5s ease' }}>
           {gridLines}
         </g>
 
-        {/* PARALLAX LAYER 3: The Nodes & Data Streams (Foreground) */}
         <g style={{ transform: `translate(${cam.x}px, ${cam.y}px) scale(${cam.z})`, transformOrigin: '0 0', transition: isDragging ? 'none' : 'transform 0.05s linear' }}>
-          
           {expanded && Array.from({ length: 4 }).map((_, i) => (
             <line key={`base-${i}`} x1="50%" y1={expanded ? "90%" : "85%"} x2={`${20 + i*20}%`} y2="200%" stroke={COLORS.primary} strokeWidth="1" opacity={isHacking ? 0.05 : 0.1} strokeDasharray="10 10" />
           ))}
 
-          {/* Lines connecting nodes */}
           {Object.keys(world).filter(k => k !== 'local' && !world[k].isHidden && !proxies.includes(k)).map(ip => {
             const node = world[ip];
             const startX = node.parentIP && world[node.parentIP] ? world[node.parentIP].x : "50%";
@@ -193,7 +243,6 @@ export default function NetworkMap({
             );
           })}
 
-          {/* Proxy Tunnels */}
           {proxyChain.length > 0 && (() => {
             const gy = expanded ? "90%" : "85%";
             const chainPoints = [
@@ -252,7 +301,7 @@ export default function NetworkMap({
                   <g 
                     style={{ 
                       color: nodeColor,
-                      opacity: dimInactive ? 0.3 : 1, // Dims un-targeted nodes during a hack
+                      opacity: dimInactive ? 0.3 : 1, 
                       transition: 'transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.5s ease', 
                       transform: isHovered ? 'scale(1.8)' : 'scale(1)',
                       animation: !isHovered && !isActive ? 'nodeIdlePulse 4s infinite alternate' : 'none'
@@ -303,7 +352,7 @@ export default function NetworkMap({
           color: COLORS.text, minWidth: '180px', borderRadius: '4px',
           zIndex: 14, backdropFilter: 'blur(6px)',
           boxShadow: `0 8px 32px rgba(0,0,0,0.8), 0 0 15px ${COLORS.primary}20`,
-          opacity: isHacking ? 0.3 : 1, // Fades tooltip slightly during a hack to focus on the dive
+          opacity: isHacking ? 0.3 : 1, 
           transition: 'opacity 0.3s ease'
         }}>
           <div style={{ color: COLORS.primary, fontWeight: 'bold', marginBottom: '6px', fontSize: '12px', letterSpacing: '1px', borderBottom: `1px solid ${COLORS.borderActive}`, paddingBottom: '4px' }}>
