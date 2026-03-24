@@ -917,52 +917,73 @@ const STEAMBREACH = () => {
       },
 
       download: async () => {
-        if (!isInside) return "[-] Must be on a remote host.";
-        if (!arg1) return "[-] Usage: download <filename>";
+        if (!isInside) return "[-] download: Connection required. Connect to a remote host first.";
+        if (!arg1) return "[-] download: missing file operand\n[*] Usage: download <filename>";
+
+        // 1. Get the files in the current directory we are looking at
+        const currentFiles = world[targetIP]?.files?.[currentDir] || [];
         
-        // --- CONSUMABLES INTERCEPT LOGIC ---
-        const isConsumable = ['decoy.bin', 'burner.ovpn', '0day_poc.sh', 'wallet.dat'].includes(arg1);
-        if (isConsumable) {
-          const currentDirFiles = fs[currentDir] || [];
-          if (!currentDirFiles.includes(arg1)) return `download: ${arg1}: No such file`;
-          
+        // 2. Check if the file actually exists here
+        if (!currentFiles.includes(arg1)) {
+          return `download: ${arg1}: No such file or directory`;
+        }
+
+        setIsProcessing(true);
+        setTerminal(prev => [...prev, { type: 'out', text: `[*] Initiating secure transfer of ${arg1}...`, isNew: false }]);
+        await new Promise(r => setTimeout(r, 1500)); // Simulate download time
+        setIsProcessing(false);
+
+        // Helper function to remove the file from the server so we can't download it twice
+        const removeFileFromServer = () => {
           setWorld(prev => {
             const nw = { ...prev };
-            const targetNode = isInside ? targetIP : 'local';
-            nw[targetNode].files[currentDir] = nw[targetNode].files[currentDir].filter(f => f !== arg1);
+            if (nw[targetIP] && nw[targetIP].files[currentDir]) {
+               nw[targetIP].files[currentDir] = nw[targetIP].files[currentDir].filter(f => f !== arg1);
+            }
             return nw;
           });
+        };
 
-          if (arg1 === 'wallet.dat') {
-            const amt = Math.floor(Math.random() * 8000 + 2000);
-            setMoney(m => m + amt);
-            return `[+] SUCCESS: Decrypted slush fund wallet.\n[+] $${amt.toLocaleString()} XMR added to your account.`;
-          } else if (arg1 === 'decoy.bin') {
-            setConsumables(c => ({ ...c, decoy: c.decoy + 1 }));
-            return `[+] SUCCESS: Recovered Trace Decoy!\n[*] Type 'use decoy' during a hack to reduce Trace by 30%.`;
-          } else if (arg1 === 'burner.ovpn') {
-            setConsumables(c => ({ ...c, burner: c.burner + 1 }));
-            return `[+] SUCCESS: Recovered Burner VPN Cert!\n[*] Type 'use burner' to reduce global Heat by 25%.`;
-          } else if (arg1 === '0day_poc.sh') {
-            setConsumables(c => ({ ...c, zeroday: c.zeroday + 1 }));
-            return `[+] SUCCESS: Recovered Zero-Day Exploit!\n[*] Type 'use 0day' during a hack for instant root access.`;
+        // 3. CHECK IF IT IS A POWER-UP
+        if (arg1 === 'decoy.bin') {
+          setConsumables(prev => ({ ...prev, decoy: prev.decoy + 1 }));
+          removeFileFromServer();
+          return `[+] TRANSFER COMPLETE: ${arg1}\n[+] 1x TRACE DECOY added to inventory.`;
+        }
+        if (arg1 === 'burner.ovpn') {
+          setConsumables(prev => ({ ...prev, burner: prev.burner + 1 }));
+          removeFileFromServer();
+          return `[+] TRANSFER COMPLETE: ${arg1}\n[+] 1x BURNER VPN added to inventory.`;
+        }
+        if (arg1 === '0day_poc.sh') {
+          setConsumables(prev => ({ ...prev, zeroday: prev.zeroday + 1 }));
+          removeFileFromServer();
+          return `[+] TRANSFER COMPLETE: ${arg1}\n[+] 1x WEAPONIZED ZERO-DAY added to inventory.`;
+        }
+        if (arg1 === 'wallet.dat') {
+          const loot = Math.floor(Math.random() * 4000 + 1000); // Random $1k - $5k
+          setMoney(m => m + loot);
+          removeFileFromServer();
+          return `[+] TRANSFER COMPLETE: ${arg1}\n[+] Decrypted wallet. $${loot.toLocaleString()} XMR extracted to local funds.`;
+        }
+
+        // 4. CHECK IF IT IS A FIXER EXFILTRATION CONTRACT
+        if (activeContract?.type === 'exfil' && activeContract.targetIP === targetIP && activeContract.targetFile === arg1) {
+          const timeTaken = (Date.now() - activeContract.startTime) / 1000;
+          if (timeTaken <= activeContract.timeLimit && heat <= activeContract.heatCap) {
+            setMoney(m => m + activeContract.reward);
+            setReputation(r => r + activeContract.repReward);
+            setContracts(prev => prev.map(c => c.id === activeContract.id ? { ...c, completed: true, active: false } : c));
+            setActiveContract(null); 
+            removeFileFromServer();
+            return `[+] TRANSFER COMPLETE: ${arg1}\n\n[FIXER] CONTRACT ${activeContract.id} FULFILLED.\n[+] BONUS: $${activeContract.reward.toLocaleString()} + ${activeContract.repReward} REP`;
+          } else {
+             return `[+] TRANSFER COMPLETE: ${arg1}\n[-] CONTRACT FAILED: Parameters not met (Time or Heat exceeded).`;
           }
         }
 
-        const targetFile = resolvePath(arg1, currentDir);
-        let rawData = contents[targetFile] || contents[arg1];
-        if (!rawData) return `[-] download: ${arg1}: File not found`;
-        if (rawData.startsWith('[LOCKED]')) {
-          if (privilege !== 'root') return `[-] Permission denied.`;
-          rawData = rawData.replace('[LOCKED] ', '');
-        }
-        setWorld(prev => {
-          const nw = { ...prev };
-          if (!nw.local.files['/home/operator'].includes(arg1)) nw.local.files['/home/operator'] = [...nw.local.files['/home/operator'], arg1];
-          nw.local.contents = { ...nw.local.contents, [`/home/operator/${arg1}`]: rawData };
-          return nw;
-        });
-        return `[+] ${arg1} saved to /home/operator/`;
+        // 5. DEFAULT BEHAVIOR (Just downloading random junk lore files)
+        return `[+] TRANSFER COMPLETE: ${arg1}\n[*] File safely stored to local drive.`;
       },
 
       hashcat: async () => {
