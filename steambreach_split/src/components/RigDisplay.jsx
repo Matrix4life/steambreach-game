@@ -23,56 +23,54 @@ function getTier(inventory, slot) {
   return tier;
 }
 
-// ----------------------------------------------------
-// HIGH-DETAIL 16-BIT / VECTOR ASSETS
-// ----------------------------------------------------
+// ==========================================
+// VECTOR ART ASSETS (HIGH DETAIL)
+// ==========================================
 
-// Detailed PC Fan
-const VectorFan = ({ x, y, size, heat, isRGB }) => {
-  const fanDur = heat > 75 ? '0.15s' : (heat > 40 ? '0.4s' : '1.5s');
-  const ringColor = isRGB ? 'currentColor' : '#4a8b96';
-  const bladeColor = isRGB ? 'currentColor' : '#2d2a2e';
+const VectorFan = ({ x, y, size, heat, isRGB, color }) => {
+  const fanDur = heat > 75 ? '0.15s' : (heat > 40 ? '0.3s' : '1.2s');
+  const rgbClass = isRGB ? 'rgb-anim-stroke' : '';
+  const fanColor = isRGB ? 'currentColor' : (color || '#4a8b96');
   const r = size / 2;
   const center = r;
 
   return (
     <svg x={x} y={y} width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {/* Fan Housing */}
-      <rect x="0" y="0" width={size} height={size} rx="4" fill="#0f0f14" stroke="#222" strokeWidth="2" />
-      <rect x="2" y="2" width={size-4} height={size-4} rx="3" fill="none" stroke="#333" strokeWidth="1" />
+      {/* Housing */}
+      <rect x="0" y="0" width={size} height={size} rx="3" fill="#15151c" stroke="#222" strokeWidth="1.5" />
+      <rect x="2" y="2" width={size-4} height={size-4} rx="2" fill="none" stroke="#2d2a2e" strokeWidth="1" />
       
-      {/* Anti-vibration pads */}
-      <circle cx="4" cy="4" r="1.5" fill="#444" />
-      <circle cx={size-4} cy="4" r="1.5" fill="#444" />
-      <circle cx="4" cy={size-4} r="1.5" fill="#444" />
-      <circle cx={size-4} cy={size-4} r="1.5" fill="#444" />
+      {/* Rubber Mounts */}
+      <rect x="1" y="1" width="4" height="4" fill="#333" />
+      <rect x={size-5} y="1" width="4" height="4" fill="#333" />
+      <rect x="1" y={size-5} width="4" height="4" fill="#333" />
+      <rect x={size-5} y={size-5} width="4" height="4" fill="#333" />
 
-      {/* Outer RGB Ring */}
-      <circle cx={center} cy={center} r={r - 4} fill="#050508" stroke={ringColor} strokeWidth="3" className={isRGB ? "rgb-anim-stroke" : ""} />
+      {/* RGB Ring */}
+      <circle cx={center} cy={center} r={r - 3} fill="#0a0a0f" stroke={fanColor} strokeWidth="2" className={rgbClass} style={{ filter: isRGB ? 'drop-shadow(0 0 2px currentColor)' : 'none' }} />
       
-      {/* Spinning Blades */}
+      {/* Blades */}
       <g style={{ transformOrigin: 'center', animation: `fan-spin ${fanDur} linear infinite` }}>
-        {/* 7-Blade design */}
-        {[0, 51, 102, 154, 205, 257, 308].map(deg => (
+        {[0, 40, 80, 120, 160, 200, 240, 280, 320].map(deg => (
           <path key={deg} 
-            d={`M ${center} ${center} Q ${center+10} ${center-20} ${center} ${center-r+5} Q ${center-10} ${center-15} ${center} ${center}`} 
-            fill={bladeColor} 
+            d={`M ${center} ${center} Q ${center+12} ${center-15} ${center} ${center-r+4} Q ${center-8} ${center-10} ${center} ${center}`} 
+            fill={fanColor} 
             className={isRGB ? "rgb-anim-fill" : ""}
-            opacity="0.85"
+            opacity="0.9"
             transform={`rotate(${deg} ${center} ${center})`} 
           />
         ))}
-        {/* Motor Hub */}
-        <circle cx={center} cy={center} r="8" fill="#1a1a24" stroke="#333" strokeWidth="1" />
-        <circle cx={center} cy={center} r="4" fill="#111" />
+        {/* Hub */}
+        <circle cx={center} cy={center} r="6" fill="#1a1a24" stroke="#444" strokeWidth="1" />
+        <circle cx={center} cy={center} r="2" fill={fanColor} className={isRGB ? "rgb-anim-fill" : ""} opacity="0.5" />
       </g>
     </svg>
   );
 };
 
-// ----------------------------------------------------
-// THE 2D DETAILED SIDE-PROFILE ENGINE
-// ----------------------------------------------------
+// ==========================================
+// RIG ENGINE
+// ==========================================
 const RigModel = ({ inventory, heat, isProcessing }) => {
   const hasCase = getTier(inventory, 'Case') > 0;
   const hasCPU = getTier(inventory, 'CPU') > 0;
@@ -87,122 +85,163 @@ const RigModel = ({ inventory, heat, isProcessing }) => {
   const liquidColor = isHot ? COLORS.danger : (isWarm ? COLORS.warning : COLORS.primary);
   const activeColor = hasRGB ? "currentColor" : COLORS.primary;
   
-  const cpuOpacity = isProcessing ? (Math.random() > 0.5 ? 1 : 0.5) : 0.8;
+  const cpuOpacity = isProcessing ? (Math.random() > 0.5 ? 1 : 0.4) : 0.8;
 
-  // Render a beige toaster if no case
+  // ----------------------------------------------------
+  // TIER 0: CRAIGSLIST BEIGE BOX
+  // ----------------------------------------------------
   if (!hasCase) {
     return (
       <svg width="100%" height="100%" viewBox="0 0 400 400" style={{ filter: 'drop-shadow(0px 10px 20px rgba(0,0,0,0.8))' }}>
-        {/* Crappy Beige Case */}
-        <rect x="50" y="50" width="300" height="320" fill="#d1cbbd" stroke="#a39f93" strokeWidth="4" />
-        <rect x="60" y="60" width="280" height="300" fill="#a39f93" />
+        {/* Box Base */}
+        <rect x="40" y="40" width="320" height="340" fill="#d4d0c5" stroke="#9e9b93" strokeWidth="4" />
+        <rect x="50" y="50" width="300" height="320" fill="#bbb7ad" />
         
         {/* Ugly Green Motherboard */}
-        <rect x="70" y="70" width="220" height="240" fill="#4a7550" stroke="#2c4d31" strokeWidth="2" />
-        
+        <rect x="70" y="60" width="220" height="240" fill="#3b5e3d" stroke="#223623" strokeWidth="2" />
+        {/* Traces */}
+        <path d="M 80 80 L 120 80 M 80 90 L 110 90 M 80 100 L 130 100" stroke="#5c8a5f" strokeWidth="2" />
+        {/* CMOS Battery */}
+        <circle cx="100" cy="270" r="10" fill="#c0c0c0" stroke="#777" strokeWidth="2" />
+
         {/* CPU */}
-        <rect x="150" y="100" width="60" height="60" fill="#b5b2a8" />
-        <rect x="155" y="105" width="50" height="50" fill="none" stroke="#757269" strokeWidth="4" strokeDasharray="4 2" />
-        {hasCPU && <rect x="170" y="120" width="20" height="20" fill="#757269" opacity={cpuOpacity} />}
+        <rect x="140" y="100" width="60" height="60" fill="#e0e0e0" stroke="#888" strokeWidth="2" />
+        <rect x="145" y="105" width="50" height="50" fill="none" stroke="#555" strokeWidth="2" strokeDasharray="4 2" />
+        {hasCPU && <rect x="160" y="120" width="20" height="20" fill="#555" opacity={cpuOpacity} />}
         
-        {/* Basic Fan */}
-        <VectorFan x="290" y="160" size="40" heat={heat} isRGB={false} />
+        {/* Stock Fan */}
+        <VectorFan x="290" y="140" size="45" heat={heat} isRGB={false} color="#555" />
         
-        {/* Vents */}
-        <rect x="60" y="320" width="280" height="40" fill="#8c887d" />
-        {Array.from({length: 10}).map((_, i) => (
-          <rect key={i} x={70 + i*26} y="330" width="10" height="20" fill="#333" />
+        {/* HDD & Wires */}
+        <rect x="250" y="60" width="90" height="40" fill="#888" stroke="#444" strokeWidth="2" />
+        <rect x="260" y="65" width="40" height="20" fill="#ddd" />
+        <path d="M 295 100 Q 280 150 180 160" fill="none" stroke="#d63c3c" strokeWidth="4" />
+        <path d="M 305 100 Q 290 160 180 170" fill="none" stroke="#3cd668" strokeWidth="4" />
+        
+        {/* Cheap PSU */}
+        <rect x="50" y="310" width="300" height="60" fill="#9c9990" stroke="#7a7870" strokeWidth="2" />
+        {Array.from({length: 12}).map((_, i) => (
+          <rect key={i} x={60 + i*22} y="325" width="8" height="30" fill="#333" rx="2" />
         ))}
-        {hasRGB && <rect x="50" y="50" width="300" height="320" fill="none" stroke="currentColor" strokeWidth="4" className="rgb-anim-stroke" opacity="0.5" />}
       </svg>
     );
   }
 
+  // ----------------------------------------------------
+  // TIER 1+: MATTE BLACK CYBERPUNK RIG
+  // ----------------------------------------------------
   return (
     <svg width="100%" height="100%" viewBox="0 0 400 400" style={{ filter: 'drop-shadow(0px 15px 25px rgba(0,0,0,0.9))' }}>
       <defs>
-        {/* Motherboard Grid Pattern */}
-        <pattern id="circuits" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-          <circle cx="2" cy="2" r="1" fill="#333" />
-          <path d="M 2 2 L 10 2 L 15 10" fill="none" stroke="#222" strokeWidth="1" />
-          <circle cx="15" cy="10" r="1.5" fill="#444" />
+        {/* Circuit Traces */}
+        <pattern id="circuits" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 0 10 L 15 10 L 20 15 L 40 15 M 0 30 L 10 30 L 15 25 L 30 25 M 20 0 L 20 10 M 30 40 L 30 25" fill="none" stroke="#2a2a35" strokeWidth="1.5" />
+          <circle cx="15" cy="10" r="1.5" fill="#555" />
+          <circle cx="20" cy="15" r="1.5" fill="#555" />
+          <circle cx="10" cy="30" r="1.5" fill="#555" />
         </pattern>
         
-        {/* Glass Glare Gradient */}
+        {/* Realistic Glass Glare */}
         <linearGradient id="glare" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="rgba(255,255,255,0.15)" />
-          <stop offset="30%" stopColor="rgba(255,255,255,0.0)" />
-          <stop offset="100%" stopColor="rgba(255,255,255,0.05)" />
+          <stop offset="0%" stopColor="rgba(255,255,255,0.2)" />
+          <stop offset="40%" stopColor="rgba(255,255,255,0.0)" />
+          <stop offset="45%" stopColor="rgba(255,255,255,0.05)" />
+          <stop offset="50%" stopColor="rgba(255,255,255,0.0)" />
+          <stop offset="100%" stopColor="rgba(255,255,255,0.02)" />
         </linearGradient>
 
         <linearGradient id="metal" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#444" />
-          <stop offset="100%" stopColor="#111" />
+          <stop offset="0%" stopColor="#555" />
+          <stop offset="100%" stopColor="#222" />
+        </linearGradient>
+
+        {/* 3D Tube Shading */}
+        <linearGradient id="tubeShade" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="rgba(0,0,0,0.8)" />
+          <stop offset="50%" stopColor="rgba(255,255,255,0.2)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0.8)" />
         </linearGradient>
       </defs>
 
       {/* --- EXTERIOR CHASSIS --- */}
-      <rect x="20" y="10" width="360" height="380" rx="8" fill="#0d0d12" stroke="#2d2a2e" strokeWidth="4" />
-      <rect x="30" y="20" width="340" height="360" rx="4" fill="#050508" />
+      <rect x="10" y="10" width="380" height="380" rx="10" fill="#0d0d12" stroke="#252530" strokeWidth="3" />
+      <rect x="20" y="20" width="360" height="360" rx="6" fill="#050508" />
 
       {/* --- MOTHERBOARD --- */}
-      <rect x="80" y="40" width="220" height="240" fill="#14141c" stroke="#222" strokeWidth="2" />
-      <rect x="80" y="40" width="220" height="240" fill="url(#circuits)" />
+      <rect x="70" y="30" width="240" height="260" fill="#121218" stroke="#2a2a35" strokeWidth="2" />
+      <rect x="70" y="30" width="240" height="260" fill="url(#circuits)" />
       
-      {/* VRM Heatsinks (Greebles) */}
-      <rect x="85" y="45" width="20" height="80" fill="url(#metal)" rx="2" />
-      <rect x="110" y="45" width="80" height="20" fill="url(#metal)" rx="2" />
-      {Array.from({length: 6}).map((_, i) => <rect key={i} x="85" y={48 + i*12} width="15" height="4" fill="#111" />)}
+      {/* Greebles (Capacitors, VRMs, CMOS) */}
+      <rect x="75" y="40" width="25" height="90" fill="url(#metal)" rx="2" stroke="#111" strokeWidth="1" />
+      <rect x="105" y="35" width="90" height="25" fill="url(#metal)" rx="2" stroke="#111" strokeWidth="1" />
+      {Array.from({length: 8}).map((_, i) => <circle key={`cap1-${i}`} cx="100" cy={50 + i*10} r="3" fill="#silver" stroke="#222" strokeWidth="1" />)}
+      {Array.from({length: 8}).map((_, i) => <circle key={`cap2-${i}`} cx={115 + i*10} cy="65" r="3" fill="#silver" stroke="#222" strokeWidth="1" />)}
+      <circle cx="95" cy="270" r="12" fill="#c0c0c0" stroke="#555" strokeWidth="2" />
+      <circle cx="95" cy="270" r="8" fill="none" stroke="#999" strokeWidth="1" />
 
       {/* IO Shield */}
-      <rect x="30" y="40" width="50" height="140" fill="#1a1a24" stroke="#333" strokeWidth="2" />
-      <circle cx="55" cy="60" r="6" fill="#050508" stroke={hasRGB ? "currentColor" : "#555"} strokeWidth="2" className={hasRGB ? "rgb-anim-stroke" : ""} />
+      <rect x="25" y="35" width="45" height="150" fill="#15151c" stroke="#333" strokeWidth="2" />
+      <circle cx="47" cy="60" r="8" fill="#050508" stroke={hasRGB ? "currentColor" : "#555"} strokeWidth="2" className={hasRGB ? "rgb-anim-stroke" : ""} />
+      <rect x="35" y="80" width="25" height="10" fill="#050508" />
+      <rect x="35" y="100" width="25" height="10" fill="#050508" />
+      <rect x="35" y="120" width="25" height="20" fill="#050508" />
 
       {/* --- RAM SLOTS & STICKS --- */}
-      <g transform="translate(210, 50)">
-        {/* 4 Slots */}
-        {[0, 15, 30, 45].map(xOffset => (
-          <rect key={xOffset} x={xOffset} y="0" width="8" height="110" fill="#0a0a0f" stroke="#222" strokeWidth="1" />
+      <g transform="translate(220, 45)">
+        {[0, 18, 36, 54].map(x => (
+          <rect key={x} x={x} y="0" width="10" height="120" fill="#0a0a0f" stroke="#222" strokeWidth="1" rx="2" />
         ))}
-        {/* Installed Sticks */}
-        {hasRAM && [0, 15, 30, 45].map(xOffset => (
-          <g key={`stick-${xOffset}`}>
-            <rect x={xOffset+1} y="2" width="6" height="106" fill="#2d2a2e" />
-            <rect x={xOffset+2} y="5" width="4" height="100" fill="#444" />
-            {/* RGB Lightbar on RAM */}
-            {hasRGB && <rect x={xOffset+2} y="2" width="4" height="8" fill="currentColor" className="rgb-anim-fill" style={{ filter: 'drop-shadow(0 0 2px currentColor)'}} />}
+        
+        {hasRAM && [0, 18, 36, 54].map(x => (
+          <g key={`stick-${x}`}>
+            {/* Gold Pins */}
+            <rect x={x+2} y="115" width="6" height="5" fill="#ffd866" />
+            {/* Stick Body */}
+            <rect x={x+1} y="2" width="8" height="114" fill="#2d2a2e" rx="1" />
+            <rect x={x+3} y="15" width="4" height="90" fill="#1a1a24" />
+            {/* RGB Lightbar */}
+            {hasRGB ? (
+              <rect x={x+1} y="2" width="8" height="10" fill="currentColor" className="rgb-anim-fill" style={{ filter: 'drop-shadow(0 0 4px currentColor)'}} rx="1" />
+            ) : (
+              <rect x={x+1} y="2" width="8" height="10" fill="#555" rx="1" />
+            )}
           </g>
         ))}
       </g>
 
       {/* --- CPU & COOLING --- */}
-      <g transform="translate(120, 80)">
+      <g transform="translate(115, 75)">
         {/* CPU Socket Base */}
-        <rect x="0" y="0" width="70" height="70" fill="#111" stroke="#333" strokeWidth="2" />
+        <rect x="0" y="0" width="80" height="80" fill="#1a1a24" stroke="#333" strokeWidth="2" rx="4" />
+        <rect x="5" y="5" width="70" height="70" fill="none" stroke="#444" strokeWidth="1" strokeDasharray="2 2" />
+        
         {/* The CPU Chip */}
-        {hasCPU && <rect x="15" y="15" width="40" height="40" fill="#silver" stroke="#555" strokeWidth="1" />}
-        {hasCPU && <rect x="25" y="25" width="20" height="20" fill={COLORS.primary} opacity={cpuOpacity} style={{ transition: 'opacity 0.1s' }} />}
+        {hasCPU && <rect x="20" y="20" width="40" height="40" fill="#d4d4d4" stroke="#888" strokeWidth="1.5" rx="2" />}
+        {hasCPU && <rect x="28" y="28" width="24" height="24" fill={COLORS.primary} opacity={cpuOpacity} style={{ transition: 'opacity 0.1s' }} />}
         
         {/* Cooling System */}
         {hasCooling ? (
           <g>
             {/* Liquid Pump Block */}
-            <circle cx="35" cy="35" r="28" fill="#1a1a24" stroke="#000" strokeWidth="3" />
-            <circle cx="35" cy="35" r="24" fill="none" stroke={activeColor} strokeWidth="3" className={hasRGB ? "rgb-anim-stroke" : ""} />
-            <text x="35" y="40" fill={activeColor} fontSize="12" fontWeight="bold" textAnchor="middle" className={hasRGB ? "rgb-anim-fill" : ""}>AI</text>
+            <rect x="10" y="10" width="60" height="60" rx="30" fill="#15151c" stroke="#000" strokeWidth="3" />
+            <circle cx="40" cy="40" r="24" fill="none" stroke={activeColor} strokeWidth="3" className={hasRGB ? "rgb-anim-stroke" : ""} style={{ filter: hasRGB ? 'drop-shadow(0 0 3px currentColor)' : 'none' }} />
+            <path d="M 30 45 L 40 30 L 50 45 Z" fill="none" stroke={activeColor} strokeWidth="2" className={hasRGB ? "rgb-anim-stroke" : ""} />
             
             {/* Braided Tubes routing up to Radiator */}
-            <path d="M 45 10 Q 55 -30 90 -40 L 140 -40" fill="none" stroke="#222" strokeWidth="12" />
-            <path d="M 45 10 Q 55 -30 90 -40 L 140 -40" fill="none" stroke={liquidColor} strokeWidth="4" className="flow" />
-            <path d="M 25 10 Q 30 -40 90 -55 L 140 -55" fill="none" stroke="#222" strokeWidth="12" />
-            <path d="M 25 10 Q 30 -40 90 -55 L 140 -55" fill="none" stroke={liquidColor} strokeWidth="4" className="flow" />
+            <path d="M 65 25 Q 90 -40 130 -40" fill="none" stroke="#111" strokeWidth="14" />
+            <path d="M 65 25 Q 90 -40 130 -40" fill="none" stroke="#333" strokeWidth="10" />
+            <path d="M 65 25 Q 90 -40 130 -40" fill="none" stroke={liquidColor} strokeWidth="4" className="flow" />
+            
+            <path d="M 65 55 Q 120 -20 130 -20" fill="none" stroke="#111" strokeWidth="14" />
+            <path d="M 65 55 Q 120 -20 130 -20" fill="none" stroke="#333" strokeWidth="10" />
+            <path d="M 65 55 Q 120 -20 130 -20" fill="none" stroke={liquidColor} strokeWidth="4" className="flow" />
           </g>
         ) : (
            hasCPU && (
-             <g transform="translate(-5, -5)">
+             <g transform="translate(-10, -10)">
                {/* Stock Air Cooler */}
-               <rect x="0" y="0" width="80" height="80" fill="url(#metal)" rx="40" />
-               <VectorFan x="5" y="5" size="70" heat={heat} isRGB={hasRGB} />
+               <rect x="0" y="0" width="100" height="100" fill="url(#metal)" rx="50" />
+               <VectorFan x="10" y="10" size="80" heat={heat} isRGB={hasRGB} />
              </g>
            )
         )}
@@ -210,85 +249,101 @@ const RigModel = ({ inventory, heat, isProcessing }) => {
 
       {/* Top Radiator (If Liquid Cooled) */}
       {hasCooling && (
-        <g transform="translate(140, 20)">
-          <rect x="0" y="0" width="220" height="25" fill="#111" stroke="#222" strokeWidth="2" />
-          <rect x="5" y="2" width="210" height="21" fill="none" stroke={liquidColor} strokeWidth="1" opacity="0.5" />
+        <g transform="translate(140, 25)">
+          <rect x="0" y="0" width="240" height="30" fill="#15151c" stroke="#222" strokeWidth="2" rx="4" />
+          {/* Dense Radiator Fins */}
+          {Array.from({length: 58}).map((_, i) => <rect key={i} x={4 + i*4} y="2" width="2" height="26" fill="#0a0a0f" />)}
+          <rect x="0" y="30" width="240" height="6" fill="#111" />
         </g>
       )}
 
       {/* --- DISCRETE GPU (Massive Card) --- */}
       {hasGPU ? (
-        <g transform="translate(80, 200)">
+        <g transform="translate(70, 210)">
           {/* PCIe Slot Connection */}
-          <rect x="10" y="-10" width="120" height="10" fill="#111" />
+          <rect x="20" y="-10" width="160" height="10" fill="#111" />
+          <rect x="25" y="-5" width="150" height="5" fill="#ffd866" /> 
           
           {/* GPU Backplate & Shroud */}
-          <rect x="0" y="0" width="280" height="65" rx="4" fill="#1a1a24" stroke="#333" strokeWidth="2" style={{ filter: 'drop-shadow(0px 8px 10px rgba(0,0,0,0.8))' }} />
+          <rect x="0" y="0" width="300" height="75" rx="6" fill="#1a1a24" stroke="#333" strokeWidth="2" style={{ filter: 'drop-shadow(0px 10px 15px rgba(0,0,0,0.6))' }} />
           
           {/* Heatsink Fins (Greebles) */}
-          <rect x="5" y="5" width="270" height="15" fill="url(#metal)" />
-          {Array.from({length: 30}).map((_, i) => <rect key={i} x={5 + i*9} y="5" width="2" height="15" fill="#111" />)}
+          <rect x="10" y="6" width="280" height="16" fill="url(#metal)" rx="2" />
+          {Array.from({length: 46}).map((_, i) => <rect key={i} x={12 + i*6} y="6" width="2" height="16" fill="#111" />)}
 
-          {/* GPU Branding */}
-          {hasRGB && <text x="140" y="30" fill="currentColor" fontSize="14" fontWeight="900" fontStyle="italic" textAnchor="middle" className="rgb-anim-fill" style={{ letterSpacing: '4px', filter: 'drop-shadow(0 0 4px currentColor)' }}>NEURAL NET ACCELERATOR</text>}
-
-          {/* GPU Heatpipes */}
-          <path d="M 275 25 Q 290 25 290 40 L 290 60" fill="none" stroke="#silver" strokeWidth="6" />
-          <path d="M 275 35 Q 285 35 285 45 L 285 60" fill="none" stroke="#silver" strokeWidth="6" />
+          {/* Copper Heatpipes */}
+          <path d="M 290 30 Q 305 30 305 50 L 305 65" fill="none" stroke="#b87333" strokeWidth="6" />
+          <path d="M 290 40 Q 300 40 300 55 L 300 65" fill="none" stroke="#b87333" strokeWidth="6" />
 
           {/* PCIe Power Cables */}
-          <path d="M 240 0 Q 240 -40 280 -20" fill="none" stroke="#222" strokeWidth="8" />
-          <path d="M 250 0 Q 250 -30 280 -10" fill="none" stroke="#222" strokeWidth="8" />
-          {hasRGB && <path d="M 240 0 Q 240 -40 280 -20" fill="none" stroke="currentColor" strokeWidth="2" className="rgb-anim-stroke flow" />}
+          <path d="M 250 0 Q 250 -40 290 -30" fill="none" stroke="#222" strokeWidth="10" />
+          <path d="M 265 0 Q 265 -30 290 -20" fill="none" stroke="#222" strokeWidth="10" />
+          {hasRGB && <path d="M 250 0 Q 250 -40 290 -30" fill="none" stroke="currentColor" strokeWidth="2" className="rgb-anim-stroke flow" />}
+          {hasRGB && <path d="M 265 0 Q 265 -30 290 -20" fill="none" stroke="currentColor" strokeWidth="2" className="rgb-anim-stroke flow" />}
 
-          {/* GPU Fans (Mounted on the side/bottom of the shroud) */}
-          <VectorFan x="20" y="25" size="35" heat={heat} isRGB={hasRGB} />
-          <VectorFan x="120" y="25" size="35" heat={heat} isRGB={hasRGB} />
-          <VectorFan x="220" y="25" size="35" heat={heat} isRGB={hasRGB} />
+          {/* GPU Fans */}
+          <VectorFan x="20" y="25" size="45" heat={heat} isRGB={hasRGB} />
+          <VectorFan x="127" y="25" size="45" heat={heat} isRGB={hasRGB} />
+          <VectorFan x="235" y="25" size="45" heat={heat} isRGB={hasRGB} />
           
           {/* RGB Trim */}
-          {hasRGB && <rect x="0" y="0" width="280" height="65" rx="4" fill="none" stroke="currentColor" strokeWidth="2" className="rgb-anim-stroke" />}
+          {hasRGB && <rect x="0" y="0" width="300" height="75" rx="6" fill="none" stroke="currentColor" strokeWidth="3" className="rgb-anim-stroke" />}
+          {hasRGB && <path d="M 20 6 L 100 6 L 110 20 L 190 20 L 200 6 L 280 6" fill="none" stroke="currentColor" strokeWidth="2" className="rgb-anim-stroke" />}
         </g>
       ) : (
         /* Empty PCIe Slots */
-        <g transform="translate(90, 200)">
-          <rect x="0" y="0" width="180" height="10" fill="#111" />
-          <rect x="0" y="25" width="180" height="10" fill="#111" />
+        <g transform="translate(100, 210)">
+          <rect x="0" y="0" width="200" height="12" fill="#111" rx="2" />
+          <rect x="0" y="30" width="200" height="12" fill="#111" rx="2" />
         </g>
       )}
 
       {/* --- PSU SHROUD (Bottom floor) --- */}
-      <g transform="translate(30, 290)">
-        <rect x="0" y="0" width="340" height="90" fill="#111" stroke="#222" strokeWidth="2" />
+      <g transform="translate(20, 310)">
+        <rect x="0" y="0" width="360" height="70" fill="#15151c" stroke="#222" strokeWidth="2" />
+        
         {/* Cutout showing PSU */}
-        <rect x="20" y="15" width="120" height="60" fill="#1a1a24" stroke="#000" strokeWidth="2" />
-        <text x="80" y="55" fill={COLORS.textDim} fontSize="24" fontWeight="bold" fontFamily="monospace" textAnchor="middle">850W</text>
+        <rect x="30" y="10" width="140" height="50" fill="#1a1a24" stroke="#000" strokeWidth="2" rx="4" />
+        <text x="100" y="42" fill={COLORS.textDim} fontSize="28" fontWeight="900" fontStyle="italic" fontFamily="monospace" textAnchor="middle" style={{ letterSpacing: '2px' }}>850W</text>
+        
         {/* Shroud Vents */}
-        {Array.from({length: 15}).map((_, i) => <rect key={i} x={180 + i*10} y="15" width="4" height="30" fill="#0a0a0f" />)}
-        {/* Underglow */}
-        {hasRGB && <line x1="0" y1="0" x2="340" y2="0" stroke="currentColor" strokeWidth="4" className="rgb-anim-stroke" style={{ filter: 'drop-shadow(0 0 6px currentColor)'}} />}
+        {Array.from({length: 12}).map((_, i) => <rect key={i} x={190 + i*12} y="15" width="6" height="40" fill="#0a0a0f" rx="3" />)}
+        
+        {/* Underglow Strip */}
+        {hasRGB && <line x1="0" y1="0" x2="360" y2="0" stroke="currentColor" strokeWidth="4" className="rgb-anim-stroke" style={{ filter: 'drop-shadow(0 -4px 8px currentColor)'}} />}
       </g>
 
       {/* --- CASE FANS (Front Intake & Rear Exhaust) --- */}
       {hasCase && (
         <g>
           {/* Front Intake (Right side) */}
-          <VectorFan x="300" y="40" size="65" heat={heat} isRGB={hasRGB} />
-          <VectorFan x="300" y="115" size="65" heat={heat} isRGB={hasRGB} />
-          <VectorFan x="300" y="190" size="65" heat={heat} isRGB={hasRGB} />
+          <VectorFan x="305" y="30" size="70" heat={heat} isRGB={hasRGB} />
+          <VectorFan x="305" y="110" size="70" heat={heat} isRGB={hasRGB} />
+          <VectorFan x="305" y="190" size="70" heat={heat} isRGB={hasRGB} />
           
           {/* Rear Exhaust (Left side) */}
-          <VectorFan x="35" y="45" size="45" heat={heat} isRGB={hasRGB} />
+          <VectorFan x="25" y="40" size="45" heat={heat} isRGB={hasRGB} />
         </g>
       )}
 
       {/* --- GLASS PANEL GLARE OVERLAY --- */}
       {hasCase && (
         <g>
-          <rect x="30" y="20" width="340" height="360" rx="4" fill="url(#glare)" pointerEvents="none" />
+          <rect x="20" y="20" width="360" height="360" rx="6" fill="url(#glare)" pointerEvents="none" />
+          
+          {/* Sharp Diagonal Reflection Polygon */}
+          <polygon points="20,20 180,20 20,180" fill="rgba(255,255,255,0.03)" pointerEvents="none" />
+          <polygon points="200,20 240,20 20,240 20,200" fill="rgba(255,255,255,0.02)" pointerEvents="none" />
+          
           {/* Glass edge highlights */}
-          <path d="M 32 22 L 368 22 L 368 378" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" pointerEvents="none" />
-          <path d="M 32 22 L 32 378 L 368 378" fill="none" stroke="rgba(0,0,0,0.5)" strokeWidth="2" pointerEvents="none" />
+          <path d="M 22 22 L 378 22 L 378 378" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" pointerEvents="none" />
+          <path d="M 22 22 L 22 378 L 378 378" fill="none" stroke="rgba(0,0,0,0.5)" strokeWidth="2" pointerEvents="none" />
+          
+          {/* Thumb Screws */}
+          <circle cx="35" cy="35" r="4" fill="#333" stroke="#111" strokeWidth="1" pointerEvents="none" />
+          <circle cx="365" cy="35" r="4" fill="#333" stroke="#111" strokeWidth="1" pointerEvents="none" />
+          <circle cx="35" cy="365" r="4" fill="#333" stroke="#111" strokeWidth="1" pointerEvents="none" />
+          <circle cx="365" cy="365" r="4" fill="#333" stroke="#111" strokeWidth="1" pointerEvents="none" />
         </g>
       )}
     </svg>
@@ -326,8 +381,8 @@ export default function RigDisplay({
   const isHot = safeHeat >= 75;
   const isWarm = safeHeat >= 40;
 
-  const width = expanded ? 500 : 235;
-  const height = expanded ? 250 : 84;
+  const width = expanded ? 600 : 235;
+  const height = expanded ? 400 : 84;
 
   const HARDWARE_SLOTS = ['Case', 'CPU', 'GPU', 'RAM', 'Cooling', 'Storage', 'PSU', 'RGB'];
 
@@ -350,7 +405,7 @@ export default function RigDisplay({
         border: `1px solid ${isHot ? `${COLORS.danger}66` : COLORS.border}`,
         position: 'relative', background: COLORS.bgDark,
         overflow: 'hidden', borderRadius: '3px',
-        transition: 'width 0.25s ease, height 0.25s ease',
+        transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1), height 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
         cursor: expanded ? 'default' : 'pointer',
         boxShadow: isHot ? `0 0 12px ${COLORS.danger}20, inset 0 0 18px ${COLORS.danger}08` : `inset 0 0 18px rgba(0,0,0,0.35)`,
         userSelect: 'none'
@@ -373,18 +428,26 @@ export default function RigDisplay({
         .rgb-anim-fill { animation: rgb-cycle 4s linear infinite; fill: currentColor; }
         .rgb-anim-bg { animation: rgb-cycle 4s linear infinite; background-color: currentColor; }
         .flow { stroke-dasharray: 10, 5; animation: flow 0.5s linear infinite; }
+        
+        /* Custom scrollbar for diagnostic panel */
+        .diag-scroll::-webkit-scrollbar { width: 4px; }
+        .diag-scroll::-webkit-scrollbar-track { background: transparent; }
+        .diag-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
       `}</style>
 
       <button
         onClick={(e) => { e.stopPropagation(); toggleExpand?.(); }}
         style={{
-          position: 'absolute', top: 3, right: 6, zIndex: 100,
-          background: 'rgba(0,0,0,0.6)', border: `1px solid ${COLORS.border}`,
+          position: 'absolute', top: 6, right: 8, zIndex: 100,
+          background: 'rgba(0,0,0,0.8)', border: `1px solid ${COLORS.borderActive}`,
           color: COLORS.textDim, fontSize: '10px', cursor: 'pointer',
-          fontFamily: 'inherit', padding: '2px 6px', borderRadius: '2px',
+          fontFamily: 'inherit', padding: '4px 8px', borderRadius: '3px',
+          fontWeight: 'bold', letterSpacing: '1px', transition: 'background 0.2s, color 0.2s'
         }}
+        onMouseEnter={(e) => { e.target.style.background = '#222'; e.target.style.color = '#fff'; }}
+        onMouseLeave={(e) => { e.target.style.background = 'rgba(0,0,0,0.8)'; e.target.style.color = COLORS.textDim; }}
       >
-        {expanded ? '▲ MINIMIZE' : '▼ VIEW'}
+        {expanded ? 'X CLOSE LAB' : '▼ OPEN RIG'}
       </button>
 
       {!expanded ? (
@@ -406,40 +469,44 @@ export default function RigDisplay({
           <div style={{ flex: 1, position: 'relative', background: 'radial-gradient(circle at center, #1a1a24 0%, #0a0a0f 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {isHot && <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', animation: 'heat-pulse 1s infinite' }} />}
             
-            <div style={{ width: '220px', height: '220px' }}>
+            {/* The actual Rig Model SVG is scaled to fit nicely here */}
+            <div style={{ width: '380px', height: '380px', marginTop: '20px' }}>
               <RigModel inventory={inventory} heat={heat} isProcessing={isProcessing} />
             </div>
             
-            <div style={{ position: 'absolute', bottom: '12px', left: '12px', color: COLORS.textDim, fontSize: '9px', background: 'rgba(0,0,0,0.5)', padding: '4px 8px', borderRadius: '4px', letterSpacing: '1px' }}>
+            <div style={{ position: 'absolute', bottom: '12px', left: '12px', color: COLORS.textDim, fontSize: '10px', background: 'rgba(0,0,0,0.6)', padding: '6px 10px', borderRadius: '4px', letterSpacing: '2px', fontWeight: 'bold' }}>
                <span style={{ color: isHot ? COLORS.danger : (isWarm ? COLORS.warning : COLORS.secondary) }}>THERMALS: {heat}%</span>
             </div>
           </div>
 
           {/* RIGHT COLUMN: HTML DIAGNOSTICS PANEL */}
-          <div style={{ width: '220px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', boxSizing: 'border-box', background: 'rgba(8,12,18,0.6)', borderLeft: `1px solid ${COLORS.border}` }}>
-             <div style={{ color: COLORS.primary, fontSize: '11px', letterSpacing: '2px' }}>HARDWARE DIAGNOSTICS</div>
+          <div className="diag-scroll" style={{ width: '220px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', boxSizing: 'border-box', background: 'rgba(10,12,18,0.85)', borderLeft: `1px solid ${COLORS.border}`, overflowY: 'auto' }}>
+             <div style={{ color: COLORS.primary, fontSize: '12px', letterSpacing: '2px', fontWeight: 'bold', borderBottom: `1px solid ${COLORS.borderActive}`, paddingBottom: '12px', marginBottom: '8px' }}>
+               HARDWARE LAB
+             </div>
              
-             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', overflowY: 'auto', paddingRight: '4px' }}>
+             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                 {HARDWARE_SLOTS.map(slot => {
                    const isInst = installed[slot];
                    const isSel = selected === slot;
                    return (
                      <div key={slot} onClick={() => setSelected(slot)} style={{
-                       flex: '1 1 45%', padding: '6px', cursor: 'pointer', borderRadius: '3px',
-                       background: isSel ? `${COLORS.primary}20` : 'rgba(0,0,0,0.4)',
+                       flex: '1 1 45%', padding: '8px', cursor: 'pointer', borderRadius: '4px',
+                       background: isSel ? `${COLORS.primary}20` : 'rgba(0,0,0,0.5)',
                        border: `1px solid ${isSel ? COLORS.primary : COLORS.border}`,
                        transition: 'background 0.2s, border-color 0.2s'
                      }}>
-                       <div style={{ fontSize: '9px', color: isSel ? COLORS.text : COLORS.textDim, letterSpacing: '1px' }}>{slot}</div>
-                       <div style={{ fontSize: '8px', color: isInst ? COLORS.primary : COLORS.danger, marginTop: '4px', fontWeight: 'bold' }}>
-                         {isInst ? `TIER ${getTier(inventory, slot)}` : 'EMPTY'}
+                       <div style={{ fontSize: '10px', color: isSel ? COLORS.text : COLORS.textDim, letterSpacing: '1px', fontWeight: 'bold' }}>{slot}</div>
+                       <div style={{ fontSize: '9px', color: isInst ? COLORS.primary : COLORS.danger, marginTop: '6px' }}>
+                         {isInst ? `TIER ${getTier(inventory, slot)}` : 'EMPTY SLOT'}
                        </div>
                      </div>
                    );
                 })}
              </div>
 
-             <div style={{ marginTop: 'auto', background: 'rgba(0,0,0,0.4)', padding: '12px', borderRadius: '4px', border: `1px solid ${COLORS.borderActive}` }}>
+             <div style={{ marginTop: 'auto', background: 'rgba(0,0,0,0.6)', padding: '16px', borderRadius: '6px', border: `1px solid ${COLORS.borderActive}`, boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)' }}>
+                <div style={{ color: COLORS.text, fontSize: '10px', letterSpacing: '1px', marginBottom: '12px', fontWeight: 'bold' }}>LIVE TELEMETRY</div>
                 <StatBar label="CPU LOAD" value={cpuPct} color={COLORS.primary} />
                 <StatBar label="GPU LOAD" value={gpuPct} color={COLORS.proxy || '#fc9867'} />
                 <StatBar label="SYSTEM TEMP" value={safeHeat} color={statusColor} />
