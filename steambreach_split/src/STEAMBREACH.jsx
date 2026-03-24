@@ -41,6 +41,7 @@ const STEAMBREACH = () => {
   const [showHelpMenu, setShowHelpMenu] = useState(false);
 
   const [money, setMoney] = useState(0);
+  const [consumables, setConsumables] = useState({ decoy: 0, burner: 0, zeroday: 0 });
   const [reputation, setReputation] = useState(0);
   const [heat, setHeat] = useState(0);
   const [botnet, setBotnet] = useState([]);
