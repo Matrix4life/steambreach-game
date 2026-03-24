@@ -2133,6 +2133,8 @@ ${score >= 40 ? '[!] Intel suggests coordinated Blue Team response to your recen
         <NetworkMap
           world={world} botnet={botnet} proxies={proxies} looted={looted} targetIP={targetIP} trace={trace} inventory={inventory}
           selectNodeFromMap={selectNodeFromMap} expanded={mapExpanded} toggleExpand={() => setMapExpanded(e => !e)} currentRegion={currentRegion}
+          consumables={consumables} // <- ADD THIS
+          money={money} // <- ADD THIS
         />
         <RigDisplay 
           inventory={inventory} heat={heat} isProcessing={isProcessing} expanded={mapExpanded} toggleExpand={() => setMapExpanded(e => !e)} 
