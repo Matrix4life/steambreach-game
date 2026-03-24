@@ -17,12 +17,11 @@ export default function NetworkMap({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hasDragged, setHasDragged] = useState(false);
 
-  // Reset camera when minimized
   useEffect(() => {
     if (!expanded) setCam({ x: 0, y: 0, z: 1 });
   }, [expanded]);
 
-  // Native Wheel Event for smooth zooming without scrolling the page
+  // Smoother Zoom Math
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return;
@@ -31,13 +30,13 @@ export default function NetworkMap({
       if (!expanded) return;
       e.preventDefault();
       
-      const zoomSensitivity = 0.002;
-      const delta = -e.deltaY * zoomSensitivity;
+      // Use an exponential curve for smooth, infinite-feeling zoom
+      const zoomFactor = Math.exp(-e.deltaY * 0.002);
       
       setCam(prev => {
-        const newZ = clamp(prev.z + delta, 0.4, 4); // Max zoom out 0.4x, max zoom in 4x
+        // Clamp the zoom so they don't get completely lost
+        const newZ = clamp(prev.z * zoomFactor, 0.2, 5); 
         
-        // Math to zoom exactly at the mouse cursor
         const rect = el.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -71,7 +70,6 @@ export default function NetworkMap({
 
   const handleMouseUp = () => setIsDragging(false);
 
-  // Safely click a node without accidentally triggering it during a pan
   const handleNodeClick = (e, ip) => {
     e.stopPropagation();
     if (hasDragged || !expanded) return;
@@ -79,7 +77,6 @@ export default function NetworkMap({
   };
 
   // --- PARALLAX ASSETS GENERATION ---
-  // Generate once so they don't jump around on re-renders
   const dustParticles = useMemo(() => {
     return Array.from({ length: 80 }).map((_, i) => ({
       id: i,
@@ -99,7 +96,6 @@ export default function NetworkMap({
     return lines;
   }, []);
 
-  // Hash function to give each node a unique, constant floating delay
   const getFloatDelay = (ip) => {
     let hash = 0;
     for (let i = 0; i < ip.length; i++) hash += ip.charCodeAt(i);
@@ -150,7 +146,6 @@ export default function NetworkMap({
       <div className="map-vignette" />
       <div className="map-grid-glow" />
 
-      {/* --- THE INFINITE VIEWPORT --- */}
       <svg ref={svgRef} width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>
         
         {/* PARALLAX LAYER 1: Deep Space Dust */}
@@ -168,12 +163,10 @@ export default function NetworkMap({
         {/* PARALLAX LAYER 3: The Nodes & Data Streams (Foreground) */}
         <g style={{ transform: `translate(${cam.x}px, ${cam.y}px) scale(${cam.z})`, transformOrigin: '0 0', transition: isDragging ? 'none' : 'transform 0.05s linear' }}>
           
-          {/* Base Gateway Tethers */}
           {expanded && Array.from({ length: 4 }).map((_, i) => (
             <line key={`base-${i}`} x1="50%" y1={expanded ? "90%" : "85%"} x2={`${20 + i*20}%`} y2="200%" stroke={COLORS.primary} strokeWidth="1" opacity="0.1" strokeDasharray="10 10" />
           ))}
 
-          {/* Regular Data Streams */}
           {Object.keys(world).filter(k => k !== 'local' && !world[k].isHidden && !proxies.includes(k)).map(ip => {
             const node = world[ip];
             const startX = node.parentIP && world[node.parentIP] ? world[node.parentIP].x : "50%";
@@ -191,7 +184,6 @@ export default function NetworkMap({
             );
           })}
 
-          {/* Proxy Tunnels */}
           {proxyChain.length > 0 && (() => {
             const gy = expanded ? "90%" : "85%";
             const chainPoints = [
@@ -208,7 +200,6 @@ export default function NetworkMap({
             return segments;
           })()}
 
-          {/* Kali Gateway Anchor */}
           <circle cx="50%" cy={expanded ? "90%" : "85%"} r={proxyChain.length > 0 ? 8 : 6} fill="#ffffff" style={{ filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.6))' }} />
           {expanded && (
              <g transform="translate(0, 18)">
@@ -223,7 +214,6 @@ export default function NetworkMap({
              </g>
           )}
 
-          {/* Server Nodes */}
           {Object.keys(world).filter(k => k !== 'local' && !world[k].isHidden).map(ip => {
             const node = world[ip];
             const isProxy = proxies.includes(ip);
@@ -242,15 +232,14 @@ export default function NetworkMap({
                 onMouseEnter={() => expanded && setHoveredNode(ip)} 
                 onMouseLeave={() => setHoveredNode(null)}
               >
-                {/* SVG Coordinate Anchor wrapper so animation originates from the exact center */}
                 <svg x={node.x} y={node.y} style={{ overflow: 'visible' }}>
-                  <g className={expanded ? "space-node" : ""} style={{ animationDelay: getFloatDelay(ip) }}>
+                  {/* FIX: Removed space-node animation from Proxies so the thick line stays attached */}
+                  <g className={expanded && !isProxy ? "space-node" : ""} style={{ animationDelay: getFloatDelay(ip) }}>
                     {isActive && expanded && <circle cx="0" cy="0" r="14" fill="none" stroke={COLORS.primary} strokeWidth="1" className="data-stream" />}
                     {isProxy && <circle cx="0" cy="0" r={r + 4} fill="none" stroke={COLORS.proxy} strokeWidth="1.5" opacity="0.4" className="proxy-stream" />}
                     
                     <circle cx="0" cy="0" r={r} fill={nodeColor} style={{ filter: `drop-shadow(0 0 5px ${nodeColor}80)` }} />
                     
-                    {/* Tiny visual tech details on nodes */}
                     {expanded && r >= 5 && <circle cx="0" cy="0" r={r/2} fill="#111" opacity="0.5" />}
                     {expanded && isProxy && (
                       <text x="0" y="-12" fill={COLORS.proxy} fontSize="7px" textAnchor="middle" fontFamily="inherit" style={{ fontWeight: 'bold' }}>
@@ -265,9 +254,6 @@ export default function NetworkMap({
         </g>
       </svg>
 
-      {/* --- FLOATING UI OVERLAYS --- */}
-      
-      {/* Minimized Status Bar */}
       {!expanded && (
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', zIndex: 12, pointerEvents: 'none' }}>
           <span style={{ fontSize: '9px', color: COLORS.textDim, letterSpacing: '1px' }}>
@@ -279,7 +265,6 @@ export default function NetworkMap({
         </div>
       )}
 
-      {/* Expand/Collapse Button */}
       <button onClick={(e) => { e.stopPropagation(); toggleExpand(); }} style={{
         position: 'absolute', top: '6px', right: '8px', background: 'rgba(0,0,0,0.8)', border: `1px solid ${COLORS.borderActive}`,
         color: COLORS.textDim, fontSize: '10px', cursor: 'pointer', fontFamily: 'inherit', zIndex: 15, padding: '4px 8px', borderRadius: '3px', fontWeight: 'bold', letterSpacing: '1px'
@@ -287,7 +272,6 @@ export default function NetworkMap({
         {expanded ? 'X CLOSE MAP' : '▼ OPEN MAP'}
       </button>
 
-      {/* Tooltip for Hovered Node */}
       {expanded && hoveredNode && world[hoveredNode] && (
         <div style={{
           position: 'absolute', top: '16px', left: '16px',
@@ -309,7 +293,6 @@ export default function NetworkMap({
         </div>
       )}
       
-      {/* Interaction Hint */}
       {expanded && (
          <div style={{ position: 'absolute', bottom: '12px', right: '12px', color: COLORS.textDim, fontSize: '9px', background: 'rgba(0,0,0,0.6)', padding: '6px 10px', borderRadius: '4px', letterSpacing: '1px', zIndex: 12 }}>
             SCROLL TO ZOOM • DRAG TO PAN
