@@ -30,11 +30,9 @@ export default function NetworkMap({
       if (!expanded) return;
       e.preventDefault();
       
-      // Use an exponential curve for smooth, infinite-feeling zoom
       const zoomFactor = Math.exp(-e.deltaY * 0.002);
       
       setCam(prev => {
-        // Clamp the zoom so they don't get completely lost
         const newZ = clamp(prev.z * zoomFactor, 0.2, 5); 
         
         const rect = el.getBoundingClientRect();
@@ -96,12 +94,6 @@ export default function NetworkMap({
     return lines;
   }, []);
 
-  const getFloatDelay = (ip) => {
-    let hash = 0;
-    for (let i = 0; i < ip.length; i++) hash += ip.charCodeAt(i);
-    return `${-(hash % 5)}s`;
-  };
-
   // --- DATA PREP ---
   const proxyChain = proxies.filter(ip => world[ip] && !world[ip].isHidden);
   const mapHeight = expanded ? '350px' : '80px';
@@ -116,7 +108,7 @@ export default function NetworkMap({
         background: COLORS.bgDark,
         overflow: 'hidden', borderRadius: '3px',
         transition: 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        cursor: expanded ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
+        cursor: expanded ? (isDragging ? 'grabbing' : 'crosshair') : 'pointer',
         boxShadow: trace > 75 ? `0 0 12px ${COLORS.danger}20, inset 0 0 20px ${COLORS.danger}08` : `inset 0 0 30px rgba(0,0,0,0.5)`,
         userSelect: 'none'
       }}
@@ -127,24 +119,33 @@ export default function NetworkMap({
       onMouseLeave={handleMouseUp}
     >
       <style>{`
-        @keyframes stream { to { stroke-dashoffset: -20; } }
-        @keyframes streamFast { to { stroke-dashoffset: -30; } }
-        @keyframes spaceFloat {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-8px) rotate(2deg); }
+        @keyframes stream { to { stroke-dashoffset: -40; } }
+        @keyframes streamFast { to { stroke-dashoffset: -40; } }
+        @keyframes radarSweep { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* New idle pulse that DOES NOT move the node physically */
+        @keyframes nodeIdlePulse {
+          0%, 100% { opacity: 0.8; }
+          50% { opacity: 1; filter: drop-shadow(0 0 8px currentColor); }
         }
-        @keyframes mapPulse { 0% { opacity: 0.03; } 50% { opacity: 0.06; } 100% { opacity: 0.03; } }
         
-        .data-stream { stroke-dasharray: 5, 5; animation: stream 2s linear infinite; }
-        .proxy-stream { stroke-dasharray: 8, 4; animation: streamFast 1.5s linear infinite; }
-        .space-node { transform-origin: center; animation: spaceFloat 5s ease-in-out infinite; }
+        /* High-speed data packets */
+        .data-stream { stroke-dasharray: 4, 12; animation: stream 1s linear infinite; }
+        .proxy-stream { stroke-dasharray: 6, 8; animation: streamFast 0.8s linear infinite; }
         
+        /* Radar cone rotating in the background */
+        .radar-cone {
+          position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+          background: conic-gradient(from 0deg, transparent 70%, ${COLORS.primary}15 95%, ${COLORS.primary}40 100%);
+          animation: radarSweep 8s linear infinite;
+          pointer-events: none; z-index: 1;
+        }
+
         .map-vignette { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, transparent 30%, ${COLORS.bgDark} 100%); pointer-events: none; z-index: 10; }
-        .map-grid-glow { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 50% 90%, ${COLORS.primary}08 0%, transparent 60%); pointer-events: none; animation: mapPulse 3s ease infinite; z-index: 1; }
       `}</style>
 
+      {expanded && <div className="radar-cone" />}
       <div className="map-vignette" />
-      <div className="map-grid-glow" />
 
       <svg ref={svgRef} width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>
         
@@ -167,6 +168,7 @@ export default function NetworkMap({
             <line key={`base-${i}`} x1="50%" y1={expanded ? "90%" : "85%"} x2={`${20 + i*20}%`} y2="200%" stroke={COLORS.primary} strokeWidth="1" opacity="0.1" strokeDasharray="10 10" />
           ))}
 
+          {/* Lines connecting nodes */}
           {Object.keys(world).filter(k => k !== 'local' && !world[k].isHidden && !proxies.includes(k)).map(ip => {
             const node = world[ip];
             const startX = node.parentIP && world[node.parentIP] ? world[node.parentIP].x : "50%";
@@ -178,12 +180,18 @@ export default function NetworkMap({
             else if (isInfected) lineColor = `${COLORS.infected}80`;
             
             return (
-              <line key={`ln-${ip}`} x1={startX} y1={startY} x2={node.x} y2={node.y}
-                stroke={lineColor} strokeWidth={isActive ? 1.5 : 0.5}
-                className={isActive ? "data-stream" : ""} />
+              <g key={`ln-${ip}`}>
+                {/* Background solid line */}
+                <line x1={startX} y1={startY} x2={node.x} y2={node.y} stroke={lineColor} strokeWidth="0.5" opacity="0.3" />
+                {/* Foreground animated dashed line (Data Packets) */}
+                {(isActive || isInfected) && (
+                  <line x1={startX} y1={startY} x2={node.x} y2={node.y} stroke={lineColor} strokeWidth={isActive ? 1.5 : 1} className="data-stream" />
+                )}
+              </g>
             );
           })}
 
+          {/* Proxy Tunnels */}
           {proxyChain.length > 0 && (() => {
             const gy = expanded ? "90%" : "85%";
             const chainPoints = [
@@ -194,7 +202,10 @@ export default function NetworkMap({
             const segments = [];
             for (let i = 0; i < chainPoints.length - 1; i++) {
               segments.push(
-                <line key={`pc-${i}`} x1={chainPoints[i].x} y1={chainPoints[i].y} x2={chainPoints[i + 1].x} y2={chainPoints[i + 1].y} stroke={COLORS.proxy} strokeWidth="2" className="proxy-stream" opacity="0.85" style={{ filter: `drop-shadow(0 0 4px ${COLORS.proxy})` }} />
+                <g key={`pc-${i}`}>
+                   <line x1={chainPoints[i].x} y1={chainPoints[i].y} x2={chainPoints[i + 1].x} y2={chainPoints[i + 1].y} stroke={COLORS.proxy} strokeWidth="2" opacity="0.2" />
+                   <line x1={chainPoints[i].x} y1={chainPoints[i].y} x2={chainPoints[i + 1].x} y2={chainPoints[i + 1].y} stroke={COLORS.proxy} strokeWidth="2" className="proxy-stream" style={{ filter: `drop-shadow(0 0 4px ${COLORS.proxy})` }} />
+                </g>
               );
             }
             return segments;
@@ -223,7 +234,10 @@ export default function NetworkMap({
             else if (looted.includes(ip)) nodeColor = COLORS.looted;
             
             const isActive = targetIP === ip;
-            const r = expanded ? (isProxy ? 6 : 5) : (isProxy ? 4 : 3);
+            const isHovered = hoveredNode === ip;
+            
+            // Base radius
+            let r = expanded ? (isProxy ? 6 : 5) : (isProxy ? 4 : 3);
             
             return (
               <g key={`nd-${ip}`} 
@@ -232,18 +246,35 @@ export default function NetworkMap({
                 onMouseEnter={() => expanded && setHoveredNode(ip)} 
                 onMouseLeave={() => setHoveredNode(null)}
               >
+                {/* SVG Coordinate Anchor wrapper so we can scale from the exact center */}
                 <svg x={node.x} y={node.y} style={{ overflow: 'visible' }}>
-                  {/* FIX: Removed space-node animation from Proxies so the thick line stays attached */}
-                  <g className={expanded && !isProxy ? "space-node" : ""} style={{ animationDelay: getFloatDelay(ip) }}>
-                    {isActive && expanded && <circle cx="0" cy="0" r="14" fill="none" stroke={COLORS.primary} strokeWidth="1" className="data-stream" />}
+                  
+                  {/* The scale transform handles the Hover Magnetism. No translateY = no dodging the mouse! */}
+                  <g 
+                    style={{ 
+                      color: nodeColor,
+                      transition: 'transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 
+                      transform: isHovered ? 'scale(1.8)' : 'scale(1)',
+                      animation: !isHovered && !isActive ? 'nodeIdlePulse 4s infinite alternate' : 'none'
+                    }}
+                  >
+                    
+                    {/* Active Target Ring */}
+                    {isActive && expanded && <circle cx="0" cy="0" r="12" fill="none" stroke={COLORS.primary} strokeWidth="1" className="data-stream" />}
+                    
+                    {/* Proxy Shield Ring */}
                     {isProxy && <circle cx="0" cy="0" r={r + 4} fill="none" stroke={COLORS.proxy} strokeWidth="1.5" opacity="0.4" className="proxy-stream" />}
                     
-                    <circle cx="0" cy="0" r={r} fill={nodeColor} style={{ filter: `drop-shadow(0 0 5px ${nodeColor}80)` }} />
+                    {/* The core node */}
+                    <circle cx="0" cy="0" r={r} fill={nodeColor} />
                     
-                    {expanded && r >= 5 && <circle cx="0" cy="0" r={r/2} fill="#111" opacity="0.5" />}
-                    {expanded && isProxy && (
-                      <text x="0" y="-12" fill={COLORS.proxy} fontSize="7px" textAnchor="middle" fontFamily="inherit" style={{ fontWeight: 'bold' }}>
-                         HOP {proxyChain.indexOf(ip) + 1}
+                    {/* Node center detail */}
+                    {expanded && r >= 5 && <circle cx="0" cy="0" r={r/2} fill="#111" opacity="0.8" />}
+                    
+                    {/* Hover text label */}
+                    {isHovered && expanded && (
+                      <text x="0" y="-12" fill="#fff" fontSize="6px" textAnchor="middle" fontFamily="inherit" style={{ fontWeight: 'bold', filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.8))' }}>
+                         {node.sec?.toUpperCase()} NODE
                       </text>
                     )}
                   </g>
