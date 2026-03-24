@@ -17,6 +17,9 @@ export default function NetworkMap({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hasDragged, setHasDragged] = useState(false);
 
+  // Are we currently inside a server?
+  const isHacking = Boolean(targetIP);
+
   useEffect(() => {
     if (!expanded) setCam({ x: 0, y: 0, z: 1 });
   }, [expanded]);
@@ -94,6 +97,23 @@ export default function NetworkMap({
     return lines;
   }, []);
 
+  // Generate the high-speed "Data Rain" blocks for the server dive animation
+  const dataStreams = useMemo(() => {
+    return Array.from({ length: 60 }).map((_, i) => {
+      const isForeground = Math.random() > 0.5;
+      return {
+        id: `stream-${i}`,
+        x: `${Math.random() * 100}%`,
+        w: Math.random() * 6 + 2,
+        h: Math.random() * 150 + 50,
+        delay: `${Math.random() * 2}s`,
+        dur: isForeground ? `${Math.random() * 0.5 + 0.4}s` : `${Math.random() * 1 + 1}s`,
+        op: isForeground ? (Math.random() * 0.3 + 0.2) : (Math.random() * 0.15 + 0.05),
+        color: Math.random() > 0.8 ? COLORS.secondary : COLORS.primary
+      };
+    });
+  }, []);
+
   // --- DATA PREP ---
   const proxyChain = proxies.filter(ip => world[ip] && !world[ip].isHidden);
   const mapHeight = expanded ? '350px' : '80px';
@@ -105,9 +125,9 @@ export default function NetworkMap({
         flex: 1, height: mapHeight,
         border: `1px solid ${trace > 75 ? COLORS.danger + '80' : COLORS.border}`,
         position: 'relative',
-        background: COLORS.bgDark,
+        background: isHacking ? '#02040a' : COLORS.bgDark, // Deepens background when hacking
         overflow: 'hidden', borderRadius: '3px',
-        transition: 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        transition: 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.5s ease',
         cursor: expanded ? (isDragging ? 'grabbing' : 'crosshair') : 'pointer',
         boxShadow: trace > 75 ? `0 0 12px ${COLORS.danger}20, inset 0 0 20px ${COLORS.danger}08` : `inset 0 0 30px rgba(0,0,0,0.5)`,
         userSelect: 'none'
@@ -128,140 +148,174 @@ export default function NetworkMap({
           50% { opacity: 1; filter: drop-shadow(0 0 8px currentColor); }
         }
         
+        /* The Server Dive Animation */
+        @keyframes dataFall {
+          0% { transform: translateY(-200%); }
+          100% { transform: translateY(1200%); }
+        }
+        .data-rain-block {
+          animation: dataFall linear infinite;
+          will-change: transform;
+        }
+        
         /* High-speed data packets */
         .data-stream { stroke-dasharray: 4, 12; animation: stream 1s linear infinite; }
         .proxy-stream { stroke-dasharray: 6, 8; animation: streamFast 0.8s linear infinite; }
         
-        .map-vignette { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, transparent 30%, ${COLORS.bgDark} 100%); pointer-events: none; z-index: 10; }
+        .map-vignette { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, transparent 30%, ${COLORS.bgDark} 100%); pointer-events: none; z-index: 10; transition: opacity 0.5s ease; }
+        .hack-vignette { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.8) 100%); pointer-events: none; z-index: 11; opacity: 0; transition: opacity 0.5s ease; }
+        
+        .is-hacking .map-vignette { opacity: 0.3; }
+        .is-hacking .hack-vignette { opacity: 1; }
       `}</style>
 
-      <div className="map-vignette" />
+      <div className={`map-vignette ${isHacking ? 'is-hacking' : ''}`} />
+      <div className={`hack-vignette ${isHacking ? 'is-hacking' : ''}`} />
 
       <svg ref={svgRef} width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, pointerEvents: 'none' }}>
         
-        {/* PARALLAX LAYER 1: Deep Space Dust */}
-        <g style={{ transform: `translate(${cam.x * 0.2}px, ${cam.y * 0.2}px) scale(${cam.z * 0.6})`, transformOrigin: '0 0' }}>
-          {dustParticles.map(p => (
-             <circle key={p.id} cx={p.cx} cy={p.cy} r={p.r} fill={COLORS.primary} opacity={p.opacity} />
+        {/* === THE SERVER DIVE BACKGROUND (Only visible when hacking) === */}
+        <g style={{ opacity: isHacking ? 1 : 0, transition: 'opacity 0.5s ease' }}>
+          {dataStreams.map(stream => (
+            <rect 
+              key={stream.id}
+              x={stream.x}
+              y="0"
+              width={stream.w}
+              height={stream.h}
+              fill={stream.color}
+              opacity={stream.op}
+              className={isHacking ? "data-rain-block" : ""}
+              style={{ animationDelay: stream.delay, animationDuration: stream.dur }}
+            />
           ))}
         </g>
 
-        {/* PARALLAX LAYER 2: The Grid */}
-        <g style={{ transform: `translate(${cam.x * 0.5}px, ${cam.y * 0.5}px) scale(${cam.z * 0.8})`, transformOrigin: '0 0' }}>
-          {gridLines}
-        </g>
+        {/* === STANDARD PARALLAX MAP (Fades out slightly when hacking) === */}
+        <g style={{ opacity: isHacking ? 0.15 : 1, transition: 'opacity 0.5s ease' }}>
+          {/* PARALLAX LAYER 1: Deep Space Dust */}
+          <g style={{ transform: `translate(${cam.x * 0.2}px, ${cam.y * 0.2}px) scale(${cam.z * 0.6})`, transformOrigin: '0 0' }}>
+            {dustParticles.map(p => (
+               <circle key={p.id} cx={p.cx} cy={p.cy} r={p.r} fill={COLORS.primary} opacity={p.opacity} />
+            ))}
+          </g>
 
-        {/* PARALLAX LAYER 3: The Nodes & Data Streams (Foreground) */}
-        <g style={{ transform: `translate(${cam.x}px, ${cam.y}px) scale(${cam.z})`, transformOrigin: '0 0', transition: isDragging ? 'none' : 'transform 0.05s linear' }}>
-          
-          {expanded && Array.from({ length: 4 }).map((_, i) => (
-            <line key={`base-${i}`} x1="50%" y1={expanded ? "90%" : "85%"} x2={`${20 + i*20}%`} y2="200%" stroke={COLORS.primary} strokeWidth="1" opacity="0.1" strokeDasharray="10 10" />
-          ))}
+          {/* PARALLAX LAYER 2: The Grid */}
+          <g style={{ transform: `translate(${cam.x * 0.5}px, ${cam.y * 0.5}px) scale(${cam.z * 0.8})`, transformOrigin: '0 0' }}>
+            {gridLines}
+          </g>
 
-          {/* Lines connecting nodes */}
-          {Object.keys(world).filter(k => k !== 'local' && !world[k].isHidden && !proxies.includes(k)).map(ip => {
-            const node = world[ip];
-            const startX = node.parentIP && world[node.parentIP] ? world[node.parentIP].x : "50%";
-            const startY = node.parentIP && world[node.parentIP] ? world[node.parentIP].y : (expanded ? "90%" : "85%");
-            const isActive = targetIP === ip;
-            const isInfected = botnet.includes(ip);
-            let lineColor = `${COLORS.border}60`;
-            if (isActive) lineColor = COLORS.primary;
-            else if (isInfected) lineColor = `${COLORS.infected}80`;
+          {/* PARALLAX LAYER 3: The Nodes & Data Streams (Foreground) */}
+          <g style={{ transform: `translate(${cam.x}px, ${cam.y}px) scale(${cam.z})`, transformOrigin: '0 0', transition: isDragging ? 'none' : 'transform 0.05s linear' }}>
             
-            return (
-              <g key={`ln-${ip}`}>
-                {/* Background solid line */}
-                <line x1={startX} y1={startY} x2={node.x} y2={node.y} stroke={lineColor} strokeWidth="0.5" opacity="0.3" />
-                {/* Foreground animated dashed line (Data Packets) */}
-                {(isActive || isInfected) && (
-                  <line x1={startX} y1={startY} x2={node.x} y2={node.y} stroke={lineColor} strokeWidth={isActive ? 1.5 : 1} className="data-stream" />
-                )}
-              </g>
-            );
-          })}
+            {expanded && Array.from({ length: 4 }).map((_, i) => (
+              <line key={`base-${i}`} x1="50%" y1={expanded ? "90%" : "85%"} x2={`${20 + i*20}%`} y2="200%" stroke={COLORS.primary} strokeWidth="1" opacity="0.1" strokeDasharray="10 10" />
+            ))}
 
-          {/* Proxy Tunnels */}
-          {proxyChain.length > 0 && (() => {
-            const gy = expanded ? "90%" : "85%";
-            const chainPoints = [
-              { x: "50%", y: gy },
-              ...proxyChain.map(ip => ({ x: world[ip].x, y: world[ip].y })),
-              { x: "50%", y: gy }
-            ];
-            const segments = [];
-            for (let i = 0; i < chainPoints.length - 1; i++) {
-              segments.push(
-                <g key={`pc-${i}`}>
-                   <line x1={chainPoints[i].x} y1={chainPoints[i].y} x2={chainPoints[i + 1].x} y2={chainPoints[i + 1].y} stroke={COLORS.proxy} strokeWidth="2" opacity="0.2" />
-                   <line x1={chainPoints[i].x} y1={chainPoints[i].y} x2={chainPoints[i + 1].x} y2={chainPoints[i + 1].y} stroke={COLORS.proxy} strokeWidth="2" className="proxy-stream" style={{ filter: `drop-shadow(0 0 4px ${COLORS.proxy})` }} />
+            {/* Lines connecting nodes */}
+            {Object.keys(world).filter(k => k !== 'local' && !world[k].isHidden && !proxies.includes(k)).map(ip => {
+              const node = world[ip];
+              const startX = node.parentIP && world[node.parentIP] ? world[node.parentIP].x : "50%";
+              const startY = node.parentIP && world[node.parentIP] ? world[node.parentIP].y : (expanded ? "90%" : "85%");
+              const isActive = targetIP === ip;
+              const isInfected = botnet.includes(ip);
+              let lineColor = `${COLORS.border}60`;
+              if (isActive) lineColor = COLORS.primary;
+              else if (isInfected) lineColor = `${COLORS.infected}80`;
+              
+              return (
+                <g key={`ln-${ip}`}>
+                  {/* Background solid line */}
+                  <line x1={startX} y1={startY} x2={node.x} y2={node.y} stroke={lineColor} strokeWidth="0.5" opacity="0.3" />
+                  {/* Foreground animated dashed line (Data Packets) */}
+                  {(isActive || isInfected) && (
+                    <line x1={startX} y1={startY} x2={node.x} y2={node.y} stroke={lineColor} strokeWidth={isActive ? 1.5 : 1} className="data-stream" />
+                  )}
                 </g>
               );
-            }
-            return segments;
-          })()}
+            })}
 
-          <circle cx="50%" cy={expanded ? "90%" : "85%"} r={proxyChain.length > 0 ? 8 : 6} fill="#ffffff" style={{ filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.6))' }} />
-          {expanded && (
-             <g transform="translate(0, 18)">
-                <text x="50%" y="90%" fill="#ffffff" fontSize="9px" textAnchor="middle" fontFamily="inherit" opacity="0.9" style={{ fontWeight: 'bold', letterSpacing: '1px' }}>
-                  KALI-GATEWAY
-                </text>
-                {proxyChain.length > 0 && (
-                  <text x="50%" y="90%" dy="12" fill={COLORS.proxy} fontSize="7px" textAnchor="middle" fontFamily="inherit" opacity="0.9">
-                    [{proxyChain.length} HOPS ACTIVE]
-                  </text>
-                )}
-             </g>
-          )}
-
-          {Object.keys(world).filter(k => k !== 'local' && !world[k].isHidden).map(ip => {
-            const node = world[ip];
-            const isProxy = proxies.includes(ip);
-            let nodeColor = node.sec === 'high' ? COLORS.danger : COLORS.mapNode;
-            if (isProxy) nodeColor = COLORS.proxy;
-            else if (botnet.includes(ip)) nodeColor = COLORS.infected;
-            else if (looted.includes(ip)) nodeColor = COLORS.looted;
-            
-            const isActive = targetIP === ip;
-            const isHovered = hoveredNode === ip;
-            
-            // Base radius
-            let r = expanded ? (isProxy ? 6 : 5) : (isProxy ? 4 : 3);
-            
-            return (
-              <g key={`nd-${ip}`} 
-                style={{ cursor: 'crosshair', pointerEvents: 'all' }} 
-                onClick={(e) => handleNodeClick(e, ip)} 
-                onMouseEnter={() => expanded && setHoveredNode(ip)} 
-                onMouseLeave={() => setHoveredNode(null)}
-              >
-                <svg x={node.x} y={node.y} style={{ overflow: 'visible' }}>
-                  <g 
-                    style={{ 
-                      color: nodeColor,
-                      transition: 'transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 
-                      transform: isHovered ? 'scale(1.8)' : 'scale(1)',
-                      animation: !isHovered && !isActive ? 'nodeIdlePulse 4s infinite alternate' : 'none'
-                    }}
-                  >
-                    
-                    {isActive && expanded && <circle cx="0" cy="0" r="12" fill="none" stroke={COLORS.primary} strokeWidth="1" className="data-stream" />}
-                    {isProxy && <circle cx="0" cy="0" r={r + 4} fill="none" stroke={COLORS.proxy} strokeWidth="1.5" opacity="0.4" className="proxy-stream" />}
-                    
-                    <circle cx="0" cy="0" r={r} fill={nodeColor} />
-                    
-                    {expanded && r >= 5 && <circle cx="0" cy="0" r={r/2} fill="#111" opacity="0.8" />}
-                    {expanded && isProxy && (
-                      <text x="0" y="-12" fill="#fff" fontSize="6px" textAnchor="middle" fontFamily="inherit" style={{ fontWeight: 'bold', filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.8))' }}>
-                         {node.sec?.toUpperCase()} NODE
-                      </text>
-                    )}
+            {/* Proxy Tunnels */}
+            {proxyChain.length > 0 && (() => {
+              const gy = expanded ? "90%" : "85%";
+              const chainPoints = [
+                { x: "50%", y: gy },
+                ...proxyChain.map(ip => ({ x: world[ip].x, y: world[ip].y })),
+                { x: "50%", y: gy }
+              ];
+              const segments = [];
+              for (let i = 0; i < chainPoints.length - 1; i++) {
+                segments.push(
+                  <g key={`pc-${i}`}>
+                     <line x1={chainPoints[i].x} y1={chainPoints[i].y} x2={chainPoints[i + 1].x} y2={chainPoints[i + 1].y} stroke={COLORS.proxy} strokeWidth="2" opacity="0.2" />
+                     <line x1={chainPoints[i].x} y1={chainPoints[i].y} x2={chainPoints[i + 1].x} y2={chainPoints[i + 1].y} stroke={COLORS.proxy} strokeWidth="2" className="proxy-stream" style={{ filter: `drop-shadow(0 0 4px ${COLORS.proxy})` }} />
                   </g>
-                </svg>
-              </g>
-            );
-          })}
+                );
+              }
+              return segments;
+            })()}
+
+            <circle cx="50%" cy={expanded ? "90%" : "85%"} r={proxyChain.length > 0 ? 8 : 6} fill="#ffffff" style={{ filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.6))' }} />
+            {expanded && (
+               <g transform="translate(0, 18)">
+                  <text x="50%" y="90%" fill="#ffffff" fontSize="9px" textAnchor="middle" fontFamily="inherit" opacity="0.9" style={{ fontWeight: 'bold', letterSpacing: '1px' }}>
+                    KALI-GATEWAY
+                  </text>
+                  {proxyChain.length > 0 && (
+                    <text x="50%" y="90%" dy="12" fill={COLORS.proxy} fontSize="7px" textAnchor="middle" fontFamily="inherit" opacity="0.9">
+                      [{proxyChain.length} HOPS ACTIVE]
+                    </text>
+                  )}
+               </g>
+            )}
+
+            {Object.keys(world).filter(k => k !== 'local' && !world[k].isHidden).map(ip => {
+              const node = world[ip];
+              const isProxy = proxies.includes(ip);
+              let nodeColor = node.sec === 'high' ? COLORS.danger : COLORS.mapNode;
+              if (isProxy) nodeColor = COLORS.proxy;
+              else if (botnet.includes(ip)) nodeColor = COLORS.infected;
+              else if (looted.includes(ip)) nodeColor = COLORS.looted;
+              
+              const isActive = targetIP === ip;
+              const isHovered = hoveredNode === ip;
+              
+              // Base radius
+              let r = expanded ? (isProxy ? 6 : 5) : (isProxy ? 4 : 3);
+              
+              return (
+                <g key={`nd-${ip}`} 
+                  style={{ cursor: 'crosshair', pointerEvents: 'all' }} 
+                  onClick={(e) => handleNodeClick(e, ip)} 
+                  onMouseEnter={() => expanded && setHoveredNode(ip)} 
+                  onMouseLeave={() => setHoveredNode(null)}
+                >
+                  <svg x={node.x} y={node.y} style={{ overflow: 'visible' }}>
+                    <g 
+                      style={{ 
+                        color: nodeColor,
+                        transition: 'transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 
+                        transform: isHovered ? 'scale(1.8)' : 'scale(1)',
+                        animation: !isHovered && !isActive ? 'nodeIdlePulse 4s infinite alternate' : 'none'
+                      }}
+                    >
+                      {isActive && expanded && <circle cx="0" cy="0" r="12" fill="none" stroke={COLORS.primary} strokeWidth="1" className="data-stream" />}
+                      {isProxy && <circle cx="0" cy="0" r={r + 4} fill="none" stroke={COLORS.proxy} strokeWidth="1.5" opacity="0.4" className="proxy-stream" />}
+                      
+                      <circle cx="0" cy="0" r={r} fill={nodeColor} />
+                      
+                      {expanded && r >= 5 && <circle cx="0" cy="0" r={r/2} fill="#111" opacity="0.8" />}
+                      {expanded && isProxy && (
+                        <text x="0" y="-12" fill="#fff" fontSize="6px" textAnchor="middle" fontFamily="inherit" style={{ fontWeight: 'bold', filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.8))' }}>
+                           {node.sec?.toUpperCase()} NODE
+                        </text>
+                      )}
+                    </g>
+                  </svg>
+                </g>
+              );
+            })}
+          </g>
         </g>
       </svg>
 
@@ -291,6 +345,8 @@ export default function NetworkMap({
           color: COLORS.text, minWidth: '180px', borderRadius: '4px',
           zIndex: 14, backdropFilter: 'blur(6px)',
           boxShadow: `0 8px 32px rgba(0,0,0,0.8), 0 0 15px ${COLORS.primary}20`,
+          opacity: isHacking ? 0.3 : 1, // Fades tooltip slightly during a hack to focus on the dive
+          transition: 'opacity 0.3s ease'
         }}>
           <div style={{ color: COLORS.primary, fontWeight: 'bold', marginBottom: '6px', fontSize: '12px', letterSpacing: '1px', borderBottom: `1px solid ${COLORS.borderActive}`, paddingBottom: '4px' }}>
             {world[hoveredNode].name || world[hoveredNode].org?.orgName || 'Unknown'}
@@ -304,7 +360,7 @@ export default function NetworkMap({
         </div>
       )}
       
-      {expanded && (
+      {expanded && !isHacking && (
          <div style={{ position: 'absolute', bottom: '12px', right: '12px', color: COLORS.textDim, fontSize: '9px', background: 'rgba(0,0,0,0.6)', padding: '6px 10px', borderRadius: '4px', letterSpacing: '1px', zIndex: 12 }}>
             SCROLL TO ZOOM • DRAG TO PAN
          </div>
