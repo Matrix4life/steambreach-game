@@ -7,8 +7,8 @@ export default function NetworkMap({
   world = {}, botnet = [], proxies = [], looted = [], 
   targetIP, trace = 0, inventory = [], selectNodeFromMap, 
   expanded, toggleExpand, currentRegion = 'UNKNOWN',
-  consumables = { decoy: 0, burner: 0, zeroday: 0 }, // NEW PROP
-  money = 0 // NEW PROP
+  consumables = { decoy: 0, burner: 0, zeroday: 0 },
+  money = 0
 }) {
   const svgRef = useRef(null);
   const [hoveredNode, setHoveredNode] = useState(null);
@@ -154,7 +154,7 @@ export default function NetworkMap({
           50% { opacity: 1; filter: drop-shadow(0 0 8px currentColor); }
         }
 
-        /* --- THE NEW LOOT ANIMATION --- */
+        /* --- LOOT ANIMATION --- */
         @keyframes floatUpLoot {
           0% { opacity: 0; transform: translateY(20px) scale(0.9); }
           15% { opacity: 1; transform: translateY(0) scale(1.1); filter: brightness(1.5); }
@@ -165,6 +165,16 @@ export default function NetworkMap({
         .loot-notif { 
           animation: floatUpLoot 2.5s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; 
         }
+
+        /* --- SOC HUNTER ANIMATIONS --- */
+        @keyframes pulse-danger {
+          0% { r: 6px; opacity: 0.8; }
+          100% { r: 35px; opacity: 0; }
+        }
+        .hunter-pulse { animation: pulse-danger 1s ease-out infinite; }
+        
+        @keyframes traceBeam { to { stroke-dashoffset: -32; } }
+        .trace-beam { animation: traceBeam 0.5s linear infinite; }
         
         .data-stream { stroke-dasharray: 4, 12; animation: stream 1s linear infinite; }
         .proxy-stream { stroke-dasharray: 6, 8; animation: streamFast 0.8s linear infinite; }
@@ -222,6 +232,29 @@ export default function NetworkMap({
           {expanded && Array.from({ length: 4 }).map((_, i) => (
             <line key={`base-${i}`} x1="50%" y1={expanded ? "90%" : "85%"} x2={`${20 + i*20}%`} y2="200%" stroke={COLORS.primary} strokeWidth="1" opacity={isHacking ? 0.05 : 0.1} strokeDasharray="10 10" />
           ))}
+
+          {/* --- ACTIVE BLUE TEAM TRACE VISUAL --- */}
+          {isHacking && trace > 0 && world[targetIP] && (
+            <g>
+              <line
+                x1="85%" y1="15%"
+                x2={world[targetIP].x} y2={world[targetIP].y}
+                stroke={COLORS.danger}
+                strokeWidth={expanded ? 2 : 1.5}
+                strokeDasharray="4 8"
+                opacity={0.4 + (trace / 150)}
+                className="trace-beam"
+              />
+              <circle cx="85%" cy="15%" fill="none" stroke={COLORS.danger} strokeWidth="2" className="hunter-pulse" />
+              <circle cx="85%" cy="15%" r={expanded ? 8 : 5} fill={COLORS.danger} />
+              <circle cx="85%" cy="15%" r="2" fill="#fff" />
+              {expanded && (
+                <text x="85%" y="15%" dy="-20" fill={COLORS.danger} fontSize="10px" textAnchor="middle" fontWeight="bold" letterSpacing="1px" style={{ filter: `drop-shadow(0 0 4px ${COLORS.danger})` }}>
+                  [SOC] TRACE: {trace}%
+                </text>
+              )}
+            </g>
+          )}
 
           {Object.keys(world).filter(k => k !== 'local' && !world[k].isHidden && !proxies.includes(k)).map(ip => {
             const node = world[ip];
