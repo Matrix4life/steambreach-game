@@ -28,13 +28,20 @@ const COLORS = {
 // 2. MASTER COMMAND REGISTRY
 // ==========================================
 const COMMAND_REGISTRY = [
+  // --- RECON & INITIAL ACCESS ---
   { cmd: 'nmap [ip]', desc: 'Scan network or specific target' },
   { cmd: 'hydra <ip>', desc: 'Brute-force SSH credentials' },
   { cmd: 'sqlmap <ip>', desc: 'SQL injection attack' },
   { cmd: 'msfconsole <ip>', desc: 'Exploit unpatched SMB' },
   { cmd: 'curl <ip>', desc: 'Exploit HTTP/LFI vulnerability' },
   { cmd: 'spearphish <e>', desc: 'Social engineer an employee' },
+
+  // --- PRIVILEGE ESCALATION & POST-EXPLOIT ---
   { cmd: 'pwnkit', desc: 'Privilege escalation to root' },
+  { cmd: 'ssh <user@ip> <pass>', desc: 'Log in using stolen credentials (0 trace)' },
+  { cmd: 'sendmail -to <u कक्ष> -attach <f>', desc: 'Spoof internal emails (requires shell)' },
+
+  // --- BOTNET, C2, & NETWORK ---
   { cmd: 'ettercap', desc: 'ARP poison + sniff network comms' },
   { cmd: 'sliver', desc: 'Deploy C2 botnet beacon (root)' },
   { cmd: 'chisel', desc: 'Create SOCKS5 proxy tunnel (root)' },
@@ -42,6 +49,8 @@ const COMMAND_REGISTRY = [
   { cmd: 'hping3 <ip>', desc: 'Botnet SYN flood DDoS attack' },
   { cmd: 'mimikatz <ip>', desc: 'Dump LSASS creds from botnet node' },
   { cmd: 'stash <file>', desc: 'Stage exfil through botnet' },
+  
+  // --- PAYLOADS & MALWARE (ROOT) ---
   { cmd: 'msfvenom <arg>', desc: 'Deploy viral payloads (root)' },
   { cmd: 'eternalblue <arg>', desc: 'Mass SMBv1 propagation (root)' },
   { cmd: 'reptile <arg>', desc: 'Install stealth kernel rootkit (root)' },
@@ -50,25 +59,30 @@ const COMMAND_REGISTRY = [
   { cmd: 'openssl <arg>', desc: 'Deploy ransomware payload (root)' },
   { cmd: 'crontab <arg>', desc: 'Schedule logic bombs (root)' },
   { cmd: 'wipe', desc: 'Scrub system logs (root)' },
+
+  // --- EXFILTRATION & CRACKING ---
   { cmd: 'exfil <file>', desc: 'Extract financial assets' },
-  { cmd: 'use <item>', desc: 'Consume a hidden item (decoy, burner, 0day)' },
+  { cmd: 'rclone', desc: 'Mass exfiltration of corporate data (Generates massive heat)' },
   { cmd: 'download <file>', desc: 'Save remote file locally' },
   { cmd: 'hashcat <file>', desc: 'Crack hashes (-d for botnet pool)' },
+  { cmd: 'john <file>', desc: 'CPU-optimized local password cracker' },
+  { cmd: 'fence intel', desc: 'Sell exfiltrated data on the Darknet' },
+
+  // --- ECONOMY, ITEMS & PROGRESSION ---
+  { cmd: 'use <item>', desc: 'Consume a hidden item (decoy, burner, 0day)' },
   { cmd: 'contracts', desc: 'View AI fixer contracts board' },
   { cmd: 'travel <region>', desc: 'Route gateway to new global subnet' },
   { cmd: 'market', desc: 'Open Black Market Trading UI' },
   { cmd: 'shop', desc: 'Access darknet software & hardware market' },
+  
+  // --- SYSTEM & NAVIGATION ---
   { cmd: 'status', desc: 'View operator threat assessment & inventory' },
   { cmd: 'ls / cd / pwd', desc: 'Navigate file systems' },
   { cmd: 'cat <file>', desc: 'Read file contents' },
   { cmd: 'clear', desc: 'Clear terminal output' },
   { cmd: 'save', desc: 'Save current progress' },
-  { cmd: 'menu', desc: 'Return to main menu' },
-  { cmd: 'ssh <user@ip> <pass>', desc: 'Log in using stolen credentials (0 trace)' },
-  { cmd: 'sendmail -to <user> -attach <file>', desc: 'Spoof internal emails (requires shell)' },
-  { cmd: 'john <file>', desc: 'CPU-optimized local password cracker' }
+  { cmd: 'menu', desc: 'Return to main menu' }
 ];
-
 const DEV_COMMANDS = [
   { cmd: 'sudo devmode', desc: 'Toggle Developer Godmode' },
   { cmd: 'dev.money <amt>', desc: 'Inject XMR' },
