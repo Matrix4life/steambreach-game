@@ -38,7 +38,7 @@ const Typewriter = ({ text, scrollRef, onComplete, customColor }) => {
   return <span style={{ color: customColor || COLORS.text }}><SyntaxText text={displayed} /></span>;
 };
 
-export const HelpPanel = ({ onClose, devMode }) => {
+const HelpPanel = ({ onClose, devMode }) => {
   // Group the commands by their category tag
   const groupedCommands = COMMAND_REGISTRY.reduce((acc, curr) => {
     if (!acc[curr.category]) acc[curr.category] = [];
