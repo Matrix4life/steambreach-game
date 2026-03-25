@@ -1197,6 +1197,56 @@ ssh: async () => {
         return `[+] ${arg1} saved to /home/operator/`;
       },
 
+      john: async () => {
+        if (isInside) return "[-] john: Must be run locally from KALI-GATEWAY.";
+        if (!arg1) return "[-] Usage: john <filename>\n[*] Example: john sys.hashes --wordlist=rockyou.txt";
+
+        const targetFile = resolvePath(arg1, currentDir);
+        let rawData = world.local.contents[targetFile];
+        if (!rawData) return `[-] john: ${arg1}: No such file on local drive. Did you download it?`;
+        if (!rawData.includes('[HASH]')) return "[-] john: No recognizable hashes in file.";
+        
+        const hashKey = `john_${arg1}`;
+        if (looted.includes(hashKey)) return "[-] john: Hashes already cracked in previous session.";
+
+        // Extract the origin IP so we know whose passwords we are cracking
+        const ipMatch = rawData.match(/ORIGIN_IP:(\d+\.\d+\.\d+\.\d+)/);
+        const sourceIP = ipMatch ? ipMatch[1] : null;
+        const orgData = sourceIP ? world[sourceIP]?.org : null;
+
+        // HARDWARE UPGRADE: CPU makes John the Ripper 3x faster
+        const hasCPU = inventory.includes('CPU');
+        const crackTime = hasCPU ? 1200 : 3500;
+        
+        const baseReward = Math.floor(Math.random() * 10000 + 15000);
+
+        setIsProcessing(true);
+        setTerminal(prev => [...prev, { 
+          type: 'out', 
+          text: `[*] John the Ripper 1.9.0-jumbo-1 (CPU Optimized)\n[*] Loaded 14 password hashes with 14 different salts\n[*] Hardware detected: ${hasCPU ? 'Quantum Thread Ripper [ACCELERATED]' : 'Standard CPU'}\n[*] Press 'q' or Ctrl-C to abort, almost any other key for status\n[*] Initiating Wordlist + Mangling Rules attack...`, 
+          isNew: false 
+        }]);
+        
+        await new Promise(r => setTimeout(r, crackTime));
+
+        setMoney(m => m + baseReward);
+        setLooted(prev => [...prev, hashKey]);
+        setIsProcessing(false);
+
+        let out = `[+] Session complete. 14 hashes cracked.`;
+        if (orgData && orgData.employees) {
+          out += `\n[+] Decrypted core credentials for ${orgData.orgName}:`;
+          orgData.employees.forEach(emp => {
+            out += `\n    ${emp.email}@${sourceIP} : ${emp.password}`;
+          });
+          out += `\n\n[+] Additional off-book hashes fenced for $${baseReward.toLocaleString()}.`;
+          out += `\n[*] TIP: Use these credentials with the 'ssh' command to bypass intrusion detection.`;
+        } else {
+           out += `\n[+] Credentials fenced on the black market for $${baseReward.toLocaleString()}.`;
+        }
+        return out;
+      },
+
       hashcat: async () => {
         if (isInside) return "[-] Return to KALI-GATEWAY for cracking.";
         if (!arg1) return "[-] Usage: hashcat <filename>\n[*] Use 'hashcat -d <filename>' for distributed cracking across botnet nodes.";
