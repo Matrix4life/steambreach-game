@@ -39,7 +39,7 @@ const COMMAND_REGISTRY = [
   // --- PRIVILEGE ESCALATION & POST-EXPLOIT ---
   { cmd: 'pwnkit', desc: 'Privilege escalation to root' },
   { cmd: 'ssh <user@ip> <pass>', desc: 'Log in using stolen credentials (0 trace)' },
-  { cmd: 'sendmail -to <u कक्ष> -attach <f>', desc: 'Spoof internal emails (requires shell)' },
+  { cmd: 'sendmail -to <u> -attach <f>', desc: 'Spoof internal emails (requires shell)' },
 
   // --- BOTNET, C2, & NETWORK ---
   { cmd: 'ettercap', desc: 'ARP poison + sniff network comms' },
