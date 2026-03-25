@@ -29,59 +29,59 @@ const COLORS = {
 // ==========================================
 const COMMAND_REGISTRY = [
   // --- RECON & INITIAL ACCESS ---
-  { cmd: 'nmap [ip]', desc: 'Scan network or specific target' },
-  { cmd: 'hydra <ip>', desc: 'Brute-force SSH credentials' },
-  { cmd: 'sqlmap <ip>', desc: 'SQL injection attack' },
-  { cmd: 'msfconsole <ip>', desc: 'Exploit unpatched SMB' },
-  { cmd: 'curl <ip>', desc: 'Exploit HTTP/LFI vulnerability' },
-  { cmd: 'spearphish <e>', desc: 'Social engineer an employee' },
+  { cmd: 'nmap [ip]', desc: 'Scan network or specific target', category: 'RECON & ACCESS' },
+  { cmd: 'hydra <ip>', desc: 'Brute-force SSH credentials', category: 'RECON & ACCESS' },
+  { cmd: 'sqlmap <ip>', desc: 'SQL injection attack', category: 'RECON & ACCESS' },
+  { cmd: 'msfconsole <ip>', desc: 'Exploit unpatched SMB', category: 'RECON & ACCESS' },
+  { cmd: 'curl <ip>', desc: 'Exploit HTTP/LFI vulnerability', category: 'RECON & ACCESS' },
+  { cmd: 'spearphish <e>', desc: 'Social engineer an employee', category: 'RECON & ACCESS' },
 
-  // --- PRIVILEGE ESCALATION & POST-EXPLOIT ---
-  { cmd: 'pwnkit', desc: 'Privilege escalation to root' },
-  { cmd: 'ssh <user@ip> <pass>', desc: 'Log in using stolen credentials (0 trace)' },
-  { cmd: 'sendmail -to <u> -attach <f>', desc: 'Spoof internal emails (requires shell)' },
+  // --- PRIVILEGE ESCALATION ---
+  { cmd: 'pwnkit', desc: 'Privilege escalation to root', category: 'PRIVILEGE ESCALATION' },
+  { cmd: 'ssh <user@ip> <pass>', desc: 'Log in using stolen credentials (0 trace)', category: 'PRIVILEGE ESCALATION' },
+  { cmd: 'sendmail -to <u कक्ष> -attach <f>', desc: 'Spoof internal emails (requires shell)', category: 'PRIVILEGE ESCALATION' },
 
-  // --- BOTNET, C2, & NETWORK ---
-  { cmd: 'ettercap', desc: 'ARP poison + sniff network comms' },
-  { cmd: 'sliver', desc: 'Deploy C2 botnet beacon (root)' },
-  { cmd: 'chisel', desc: 'Create SOCKS5 proxy tunnel (root)' },
-  { cmd: 'disconnect <ip>', desc: 'Remove proxy or botnet node' },
-  { cmd: 'hping3 <ip>', desc: 'Botnet SYN flood DDoS attack' },
-  { cmd: 'mimikatz <ip>', desc: 'Dump LSASS creds from botnet node' },
-  { cmd: 'stash <file>', desc: 'Stage exfil through botnet' },
+  // --- BOTNET & C2 CONTROL ---
+  { cmd: 'ettercap', desc: 'ARP poison + sniff network comms', category: 'BOTNET & C2' },
+  { cmd: 'sliver', desc: 'Deploy C2 botnet beacon (root)', category: 'BOTNET & C2' },
+  { cmd: 'chisel', desc: 'Create SOCKS5 proxy tunnel (root)', category: 'BOTNET & C2' },
+  { cmd: 'disconnect <ip>', desc: 'Remove proxy or botnet node', category: 'BOTNET & C2' },
+  { cmd: 'hping3 <ip>', desc: 'Botnet SYN flood DDoS attack', category: 'BOTNET & C2' },
+  { cmd: 'mimikatz <ip>', desc: 'Dump LSASS creds from botnet node', category: 'BOTNET & C2' },
+  { cmd: 'stash <file>', desc: 'Stage exfil through botnet', category: 'BOTNET & C2' },
   
-  // --- PAYLOADS & MALWARE (ROOT) ---
-  { cmd: 'msfvenom <arg>', desc: 'Deploy viral payloads (root)' },
-  { cmd: 'eternalblue <arg>', desc: 'Mass SMBv1 propagation (root)' },
-  { cmd: 'reptile <arg>', desc: 'Install stealth kernel rootkit (root)' },
-  { cmd: 'xmrig <arg>', desc: 'Deploy cryptominer for passive XMR (root)' },
-  { cmd: 'shred <arg>', desc: 'Destroy target file system (root)' },
-  { cmd: 'openssl <arg>', desc: 'Deploy ransomware payload (root)' },
-  { cmd: 'crontab <arg>', desc: 'Schedule logic bombs (root)' },
-  { cmd: 'wipe', desc: 'Scrub system logs (root)' },
+  // --- PAYLOADS & MALWARE ---
+  { cmd: 'msfvenom <arg>', desc: 'Deploy viral payloads (root)', category: 'PAYLOADS & MALWARE' },
+  { cmd: 'eternalblue <arg>', desc: 'Mass SMBv1 propagation (root)', category: 'PAYLOADS & MALWARE' },
+  { cmd: 'reptile <arg>', desc: 'Install stealth kernel rootkit (root)', category: 'PAYLOADS & MALWARE' },
+  { cmd: 'xmrig <arg>', desc: 'Deploy cryptominer for passive XMR (root)', category: 'PAYLOADS & MALWARE' },
+  { cmd: 'shred <arg>', desc: 'Destroy target file system (root)', category: 'PAYLOADS & MALWARE' },
+  { cmd: 'openssl <arg>', desc: 'Deploy ransomware payload (root)', category: 'PAYLOADS & MALWARE' },
+  { cmd: 'crontab <arg>', desc: 'Schedule logic bombs (root)', category: 'PAYLOADS & MALWARE' },
+  { cmd: 'wipe', desc: 'Scrub system logs (root)', category: 'PAYLOADS & MALWARE' },
 
   // --- EXFILTRATION & CRACKING ---
-  { cmd: 'exfil <file>', desc: 'Extract financial assets' },
-  { cmd: 'rclone', desc: 'Mass exfiltration of corporate data (Generates massive heat)' },
-  { cmd: 'download <file>', desc: 'Save remote file locally' },
-  { cmd: 'hashcat <file>', desc: 'Crack hashes (-d for botnet pool)' },
-  { cmd: 'john <file>', desc: 'CPU-optimized local password cracker' },
-  { cmd: 'fence intel', desc: 'Sell exfiltrated data on the Darknet' },
+  { cmd: 'exfil <file>', desc: 'Extract financial assets', category: 'DATA & CRACKING' },
+  { cmd: 'rclone', desc: 'Mass exfiltration of corporate data', category: 'DATA & CRACKING' },
+  { cmd: 'download <file>', desc: 'Save remote file locally', category: 'DATA & CRACKING' },
+  { cmd: 'hashcat <file>', desc: 'Crack hashes (-d for botnet pool)', category: 'DATA & CRACKING' },
+  { cmd: 'john <file>', desc: 'CPU-optimized local password cracker', category: 'DATA & CRACKING' },
+  { cmd: 'fence intel', desc: 'Sell exfiltrated data on the Darknet', category: 'DATA & CRACKING' },
 
-  // --- ECONOMY, ITEMS & PROGRESSION ---
-  { cmd: 'use <item>', desc: 'Consume a hidden item (decoy, burner, 0day)' },
-  { cmd: 'contracts', desc: 'View AI fixer contracts board' },
-  { cmd: 'travel <region>', desc: 'Route gateway to new global subnet' },
-  { cmd: 'market', desc: 'Open Black Market Trading UI' },
-  { cmd: 'shop', desc: 'Access darknet software & hardware market' },
+  // --- ECONOMY & PROGRESSION ---
+  { cmd: 'use <item>', desc: 'Consume a hidden item (decoy, burner, 0day)', category: 'ECONOMY & ITEMS' },
+  { cmd: 'contracts', desc: 'View AI fixer contracts board', category: 'ECONOMY & ITEMS' },
+  { cmd: 'market', desc: 'Open Black Market Trading UI', category: 'ECONOMY & ITEMS' },
+  { cmd: 'shop', desc: 'Access darknet software & hardware market', category: 'ECONOMY & ITEMS' },
   
   // --- SYSTEM & NAVIGATION ---
-  { cmd: 'status', desc: 'View operator threat assessment & inventory' },
-  { cmd: 'ls / cd / pwd', desc: 'Navigate file systems' },
-  { cmd: 'cat <file>', desc: 'Read file contents' },
-  { cmd: 'clear', desc: 'Clear terminal output' },
-  { cmd: 'save', desc: 'Save current progress' },
-  { cmd: 'menu', desc: 'Return to main menu' }
+  { cmd: 'travel <region>', desc: 'Route gateway to new global subnet', category: 'SYSTEM & NAV' },
+  { cmd: 'status', desc: 'View operator threat assessment & inventory', category: 'SYSTEM & NAV' },
+  { cmd: 'ls / cd / pwd', desc: 'Navigate file systems', category: 'SYSTEM & NAV' },
+  { cmd: 'cat <file>', desc: 'Read file contents', category: 'SYSTEM & NAV' },
+  { cmd: 'clear', desc: 'Clear terminal output', category: 'SYSTEM & NAV' },
+  { cmd: 'save', desc: 'Save current progress', category: 'SYSTEM & NAV' },
+  { cmd: 'menu', desc: 'Return to main menu', category: 'SYSTEM & NAV' }
 ];
 const DEV_COMMANDS = [
   { cmd: 'sudo devmode', desc: 'Toggle Developer Godmode' },
