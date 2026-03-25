@@ -63,7 +63,9 @@ const COMMAND_REGISTRY = [
   { cmd: 'cat <file>', desc: 'Read file contents' },
   { cmd: 'clear', desc: 'Clear terminal output' },
   { cmd: 'save', desc: 'Save current progress' },
-  { cmd: 'menu', desc: 'Return to main menu' }
+  { cmd: 'menu', desc: 'Return to main menu' },
+  { cmd: 'ssh <user@ip> <pass>', desc: 'Log in using stolen credentials (0 trace)' },
+  { cmd: 'sendmail -to <user> -attach <file>', desc: 'Spoof internal emails (requires shell)' }
 ];
 
 const DEV_COMMANDS = [
