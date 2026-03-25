@@ -1651,7 +1651,7 @@ ssh: async () => {
           const infectCount = Math.floor(Math.random() * 2) + 1;
           let newNodes = [];
           for (let i = 0; i < infectCount; i++) {
-            const newNode = generateNewTarget(null, targetIP, directorRef.current?.modifiers);
+            const newNode = generateNewTarget(null, targetIP, directorRef.current?.modifiers, world[targetIP]);
             newNodes.push(newNode);
             setWorld(prev => ({ ...prev, [newNode.ip]: newNode.data }));
             setBotnet(prev => [...prev, newNode.ip]);
@@ -1676,7 +1676,7 @@ ssh: async () => {
           const infectCount = payloadType === 'reverse' ? Math.floor(Math.random() * 2) + 1 : Math.floor(Math.random() * 3) + 1;
           let newNodes = [];
           for (let i = 0; i < infectCount; i++) {
-            const newNode = generateNewTarget(null, targetIP, directorRef.current?.modifiers);
+            const newNode = generateNewTarget(null, targetIP, directorRef.current?.modifiers, world[targetIP]);
             newNodes.push(newNode);
             setWorld(prev => ({ ...prev, [newNode.ip]: newNode.data }));
             if (payloadType !== 'wiper') setBotnet(prev => [...prev, newNode.ip]);
@@ -1701,7 +1701,7 @@ ssh: async () => {
         const infectCount = Math.floor(Math.random() * 2) + 1;
         let newNodes = [];
         for (let i = 0; i < infectCount; i++) {
-          const newNode = generateNewTarget(null, targetIP, directorRef.current?.modifiers);
+          const newNode = generateNewTarget(null, targetIP, directorRef.current?.modifiers, world[targetIP]);
           newNodes.push(newNode);
           setWorld(prev => ({ ...prev, [newNode.ip]: newNode.data }));
           setBotnet(prev => [...prev, newNode.ip]);
@@ -1728,7 +1728,7 @@ ssh: async () => {
           const infectCount = Math.floor(Math.random() * 3) + 3;
           let newNodes = [];
           for (let i = 0; i < infectCount; i++) {
-            const newNode = generateNewTarget(null, targetIP, directorRef.current?.modifiers);
+            const newNode = generateNewTarget(null, targetIP, directorRef.current?.modifiers, world[targetIP]);
             newNodes.push(newNode);
             setWorld(prev => ({ ...prev, [newNode.ip]: newNode.data }));
             setBotnet(prev => [...prev, newNode.ip]);
@@ -1762,7 +1762,7 @@ ssh: async () => {
 
           let newNodes = [];
           for (let i = 0; i < infectCount; i++) {
-            const newNode = generateNewTarget(null, targetIP, directorRef.current?.modifiers);
+            const newNode = generateNewTarget(null, targetIP, directorRef.current?.modifiers, world[targetIP]);
             newNodes.push(newNode);
             setWorld(prev => ({ ...prev, [newNode.ip]: newNode.data }));
             setBotnet(prev => [...prev, newNode.ip]);
@@ -1782,7 +1782,7 @@ ssh: async () => {
         const infectCount = Math.floor(Math.random() * 3) + 3;
         let newNodes = [];
         for (let i = 0; i < infectCount; i++) {
-          const newNode = generateNewTarget(null, targetIP, directorRef.current?.modifiers);
+          const newNode = generateNewTarget(null, targetIP, directorRef.current?.modifiers, world[targetIP]);
           newNodes.push(newNode);
           setWorld(prev => ({ ...prev, [newNode.ip]: newNode.data }));
           setBotnet(prev => [...prev, newNode.ip]);
