@@ -712,6 +712,94 @@ const STEAMBREACH = () => {
     }
 
     const COMMANDS = {
+      rclone: async () => {
+        if (!isInside) return "[-] rclone: Must be executed on a remote host.";
+        if (privilege !== 'root') return "[-] rclone: Root access required to bypass DLP (Data Loss Prevention) sensors.";
+        
+        const node = world[targetIP];
+        const isHighVal = node?.sec === 'high' || node?.sec === 'elite';
+        
+        if (!isHighVal) return "[-] rclone: Target architecture does not contain sufficient proprietary data. Target a High or Elite node.";
+
+        const exfilKey = `rclone_${targetIP}`;
+        if (looted.includes(exfilKey)) return "[-] rclone: Target filesystem already drained of valuable intel.";
+
+        // --- GAME MODE SCALING ---
+        let totalSize, heatPerTick, loops, delay, reqProxies;
+        if (gameMode === 'arcade') {
+            totalSize = 400; heatPerTick = 10; loops = 3; delay = 800; reqProxies = 0;
+        } else if (gameMode === 'operator') {
+            totalSize = 1500; heatPerTick = 20; loops = 5; delay = 1500; reqProxies = 2;
+        } else { // field
+            totalSize = 800; heatPerTick = 15; loops = 4; delay = 1200; reqProxies = 0;
+        }
+
+        if (gameMode === 'operator' && proxies.length < reqProxies) {
+            return `[-] rclone: OPERATOR MODE ENFORCEMENT.\n[-] Exfiltration of ${totalSize}GB requires at least ${reqProxies} active proxy hops to mask data streams. Deploy proxychains first.`;
+        }
+
+        setIsProcessing(true);
+        setTerminal(prev => [...prev, { type: 'out', text: `[*] Configuring rclone v1.63.1...\n[*] Bypassing DLP sensors...\n[*] Establishing encrypted tunnel to offshore drop server...`, isNew: false }]);
+        
+        await new Promise(r => setTimeout(r, 2000));
+        
+        let transferred = 0;
+        for (let i = 0; i < loops; i++) {
+          transferred += Math.floor(totalSize / loops);
+          
+          setHeat(h => Math.min(h + heatPerTick, 100));
+          if (gameMode === 'operator') setTrace(t => Math.min(t + 10, 100)); // Extra punishment in Operator
+          
+          setTerminal(prev => [...prev, { type: 'out', text: `[*] Transferred: ${transferred} GB / ${totalSize} GB...`, isNew: false }]);
+          await new Promise(r => setTimeout(r, delay));
+        }
+        
+        setLooted(prev => [...prev, exfilKey]);
+        // Operator mode yields double intel due to the massive risk/file size
+        setConsumables(prev => ({ ...prev, intel: (prev.intel || 0) + (gameMode === 'operator' ? 2 : 1) }));
+        
+        setIsProcessing(false);
+        return `[+] EXFILTRATION COMPLETE: ${totalSize} GB of proprietary R&D secured.\n[!] Massive network anomaly detected. Incident logged by SOC.\n[+] 'Corporate Intel' added to local stash. Type 'exit' and use 'fence intel' to sell it.`;
+      },
+
+      fence: async () => {
+        if (isInside) return "[-] fence: Must be run securely from KALI-GATEWAY. Type 'exit' first.";
+        if (!arg1 || arg1 !== 'intel') return "[-] Usage: fence intel\n[*] Sells exfiltrated Corporate Intel on the Darknet.";
+        
+        const intelCount = consumables.intel || 0;
+        if (intelCount <= 0) return "[-] fence: No Corporate Intel in local stash. Use 'rclone' on a High/Elite target to acquire some.";
+
+        setIsProcessing(true);
+        setTerminal(prev => [...prev, { type: 'out', text: `[*] Accessing Genesis Market over TOR...\n[*] Uploading sample data proofs...\n[*] Negotiating with nation-state buyers...`, isNew: false }]);
+        
+        const waitTime = gameMode === 'arcade' ? 1000 : (gameMode === 'operator' ? 4000 : 2500);
+        await new Promise(r => setTimeout(r, waitTime));
+        
+        const mult = getRewardMult(gameMode);
+        const baseValue = Math.floor(Math.random() * 200000 + 150000); 
+        
+        let payout = Math.floor(baseValue * mult * intelCount);
+        let darknetFee = 0;
+
+        // --- GAME MODE ECONOMICS ---
+        if (gameMode === 'operator') {
+            darknetFee = Math.floor(payout * 0.15); // 15% escrow fee in operator mode
+            payout -= darknetFee;
+        } else if (gameMode === 'arcade') {
+            payout = Math.floor(payout * 1.2); // 20% bonus in arcade
+        }
+        
+        setConsumables(prev => ({ ...prev, intel: 0 }));
+        setMoney(m => m + payout);
+        
+        setIsProcessing(false);
+        let out = `[$$$] TRANSACTION SECURED.\n[+] Sold ${intelCount}x Corporate Intel packages.`;
+        if (gameMode === 'operator') out += `\n[-] Genesis Market Escrow withheld $${darknetFee.toLocaleString()} (15% laundering fee).`;
+        if (gameMode === 'arcade') out += `\n[+] Arcade Mode 20% Profit Bonus applied!`;
+        out += `\n[+] $${payout.toLocaleString()} XMR tumbled and routed to your local wallet.`;
+        
+        return out;
+      },
       sudo: async () => {
         if (arg1 === 'devmode') { setDevMode(prev => !prev); return `[!] DEV MODE ${!devMode ? 'ENABLED' : 'DISABLED'}. Godmode protocols active.`; }
         return `bash: sudo: permission denied`;
