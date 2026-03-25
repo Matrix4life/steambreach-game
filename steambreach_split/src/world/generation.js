@@ -3,12 +3,26 @@
 import { generateOrgNarrative, generateOrgFileSystem } from '../ai/agents';
 import { pickWeightedTier } from '../ai/director';
 
-const generateNewTarget = (forcedTier = null, parentIP = null, directorMods = null) => {
+const generateNewTarget = (forcedTier = null, parentIP = null, directorMods = null, parentNode = null) => {
   const octet = () => Math.floor(Math.random() * 255);
   const ip = `${octet()}.${octet()}.${octet()}.${octet()}`;
   const tiers = ['low', 'mid', 'high'];
   const sec = forcedTier || (directorMods ? pickWeightedTier(directorMods.tierWeights) : tiers[Math.floor(Math.random() * tiers.length)]);
   const activeSec = sec === 'elite' ? 'high' : sec;
+
+  // --- NEW: CLUSTERING MATH ---
+  let nodeX, nodeY;
+  if (parentNode && parentNode.x && parentNode.y) {
+    const px = parseFloat(parentNode.x);
+    const py = parseFloat(parentNode.y);
+    // Spawn within a tight 8% radius of the parent node
+    nodeX = `${Math.max(5, Math.min(95, px + (Math.random() * 16 - 8)))}%`;
+    nodeY = `${Math.max(5, Math.min(85, py + (Math.random() * 16 - 8)))}%`;
+  } else {
+    // Normal random spawn
+    nodeX = `${Math.floor(Math.random() * 85 + 7)}%`;
+    nodeY = `${Math.floor(Math.random() * 55 + 10)}%`;
+  }
 
   const layouts = {
     low: [
