@@ -38,47 +38,71 @@ const Typewriter = ({ text, scrollRef, onComplete, customColor }) => {
   return <span style={{ color: customColor || COLORS.text }}><SyntaxText text={displayed} /></span>;
 };
 
-const HelpPanel = ({ onClose, devMode }) => {
+export const HelpPanel = ({ onClose, devMode }) => {
+  // Group the commands by their category tag
+  const groupedCommands = COMMAND_REGISTRY.reduce((acc, curr) => {
+    if (!acc[curr.category]) acc[curr.category] = [];
+    acc[curr.category].push(curr);
+    return acc;
+  }, {});
+
   return (
     <div style={{
-      position: 'absolute', top: '45px', right: '15px', width: '500px',
-      background: 'rgba(12, 12, 16, 0.95)', border: `1px solid ${COLORS.primary}60`,
+      position: 'absolute', top: '10%', right: '2%', width: '450px',
+      background: 'rgba(8,12,18,0.95)', border: `1px solid ${COLORS.primary}60`,
       padding: '16px', fontSize: '11px', color: COLORS.text,
-      fontFamily: 'monospace', zIndex: 50, backdropFilter: 'blur(6px)',
-      boxShadow: `0 0 20px ${COLORS.primary}20`, borderRadius: '4px'
+      zIndex: 100, backdropFilter: 'blur(10px)',
+      boxShadow: `0 8px 32px rgba(0,0,0,0.8), 0 0 15px ${COLORS.primary}20`,
+      borderRadius: '4px'
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${COLORS.primary}60`, paddingBottom: '8px', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${COLORS.borderActive}`, paddingBottom: '8px', marginBottom: '12px' }}>
         <span style={{ color: COLORS.primary, fontWeight: 'bold', letterSpacing: '1px' }}>COMMAND REFERENCE MANUAL</span>
         <span onClick={onClose} style={{ color: COLORS.textDim, cursor: 'pointer' }}>[TAB] TO CLOSE</span>
       </div>
       <div style={{ 
-        maxHeight: '60vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '8px',
+        maxHeight: '65vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', paddingRight: '8px',
         scrollbarWidth: 'thin', scrollbarColor: `${COLORS.primaryDim} transparent`
       }}>
-        {COMMAND_REGISTRY.map((c, i) => (
-          <div key={i} style={{ display: 'flex' }}>
-            <span style={{ color: COLORS.primaryDim, width: '180px', flexShrink: 0 }}>{c.cmd}</span>
-            <span style={{ color: COLORS.textDim }}>- {c.desc}</span>
+        
+        {/* Map through the generated categories */}
+        {Object.keys(groupedCommands).map((categoryName) => (
+          <div key={categoryName} style={{ marginBottom: '8px' }}>
+            <div style={{ 
+              color: COLORS.secondary, 
+              marginTop: '4px', 
+              marginBottom: '6px', 
+              fontWeight: 'bold', 
+              borderBottom: `1px dashed ${COLORS.borderActive}`, 
+              paddingBottom: '2px',
+              letterSpacing: '1px'
+            }}>
+              [{categoryName}]
+            </div>
+            {groupedCommands[categoryName].map((c, i) => (
+              <div key={i} style={{ display: 'flex', marginBottom: '4px' }}>
+                <span style={{ color: COLORS.primaryDim, width: '180px', flexShrink: 0 }}>{c.cmd}</span>
+                <span style={{ color: COLORS.textDim }}>- {c.desc}</span>
+              </div>
+            ))}
           </div>
         ))}
         
         {devMode && (
-          <>
-            <div style={{ color: COLORS.danger, marginTop: '12px', borderTop: `1px dashed ${COLORS.danger}60`, paddingTop: '8px', marginBottom: '4px', fontWeight: 'bold' }}>
-              DEVELOPER PROTOCOLS
+          <div style={{ marginBottom: '8px' }}>
+            <div style={{ color: COLORS.danger, marginTop: '8px', borderBottom: `1px dashed ${COLORS.danger}60`, paddingBottom: '2px', marginBottom: '6px', fontWeight: 'bold', letterSpacing: '1px' }}>
+              [DEVELOPER PROTOCOLS]
             </div>
             {DEV_COMMANDS.map((c, i) => (
-              <div key={`dev-${i}`} style={{ display: 'flex' }}>
+              <div key={`dev-${i}`} style={{ display: 'flex', marginBottom: '4px' }}>
                 <span style={{ color: COLORS.danger, width: '180px', flexShrink: 0 }}>{c.cmd}</span>
                 <span style={{ color: COLORS.textDim }}>- {c.desc}</span>
               </div>
             ))}
-          </>
+          </div>
         )}
       </div>
     </div>
   );
 };
-
 
 export { SyntaxText, Typewriter, HelpPanel };
