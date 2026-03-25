@@ -777,7 +777,86 @@ const STEAMBREACH = () => {
         setIsChatting(true); setChatTarget(arg1); setChatHistory([]);
         return `[*] Connecting to ${emp.name} (${emp.role} at ${node.org.orgName})...\n[+] Channel open. Type your pretext, or 'exit' to close.\n[*] HINT: This person is ${emp.personality}`;
       },
+ssh: async () => {
+        if (isInside) return "[-] ssh: Disconnect from current session first.";
+        if (!arg1 || !args[2]) return "[-] Usage: ssh <email@ip> <password>";
+        
+        const [user, ipStr] = arg1.split('@');
+        const pass = args.slice(2).join(' '); 
+        
+        if (!user || !ipStr) return "[-] Invalid target format. Use: ssh <email>@<ip> <password>";
+        const node = world[ipStr];
+        if (!node) return `[-] ssh: connect to host ${ipStr} port 22: Connection refused`;
+        
+        const emp = node.org?.employees?.find(e => e.email === user || e.email.split('.')[0] === user);
+        if (!emp) return `[-] Access denied. User '${user}' does not exist on this server.`;
+        
+        setIsProcessing(true);
+        setTerminal(prev => [...prev, { type: 'out', text: `[*] Initializing SSH client...\n[*] Connecting to ${ipStr}:22...\n${user}@${ipStr}'s password: ${'*'.repeat(pass.length)}`, isNew: false }]);
+        await new Promise(r => setTimeout(r, 1500));
+        
+        if (emp.password !== pass) {
+          setHeat(h => Math.min(h + 5, 100));
+          setIsProcessing(false);
+          return `[-] Permission denied (publickey,password).\n[!] Failed login attempt logged by target IDS. Heat +5%`;
+        }
+        
+        setIsInside(true);
+        setTargetIP(ipStr);
+        setCurrentDir('/');
+        
+        // Admins get root, regular employees get user level access
+        const isAdmin = emp.role.toLowerCase().includes('admin') || emp.role.toLowerCase().includes('director') || emp.role.toLowerCase().includes('chief') || emp.role.toLowerCase().includes('dba');
+        setPrivilege(isAdmin ? 'root' : 'user');
+        
+        // Using valid credentials bypasses the initial trace!
+        setTrace(0);
+        setIsProcessing(false);
+        
+        return `[+] Authentication successful.\n[+] Established secure shell as '${emp.name}' (${emp.role}).\n[*] WARNING: Valid credentials bypass initial trace, but actions are still logged.`;
+      },
 
+      sendmail: async () => {
+        if (!isInside) return "[-] sendmail: You must be inside a target network to spoof internal emails.";
+        if (!arg1 || !args[2]) return "[-] Usage: sendmail -to <employee_email> -attach <payload>\n[*] Example: sendmail -to sarah.chen -attach payload.bin";
+
+        const hasTo = args.indexOf('-to');
+        const hasAttach = args.indexOf('-attach');
+
+        if (hasTo === -1 || hasAttach === -1) return "[-] sendmail: Invalid syntax. Use -to and -attach flags.";
+
+        const targetUser = args[hasTo + 1];
+        const payload = args[hasAttach + 1];
+
+        const node = world[targetIP];
+        const emp = node.org?.employees?.find(e => e.email === targetUser || e.email.includes(targetUser.split('.')[0]));
+
+        if (!emp) return `[-] Employee '${targetUser}' not found in corporate directory.`;
+
+        setIsProcessing(true);
+        setTerminal(prev => [...prev, { type: 'out', text: `[*] Accessing internal SMTP relay...\n[*] Spoofing sender as 'IT Support'...\n[*] Attaching ${payload}...\n[*] Sending email to ${emp.name}...`, isNew: false }]);
+        await new Promise(r => setTimeout(r, 2500));
+
+        // IT and Admins are much harder to trick than regular employees
+        const isIT = emp.role.toLowerCase().includes('admin') || emp.role.toLowerCase().includes('sec') || emp.role.toLowerCase().includes('dev');
+        let phishChance = isIT ? 0.25 : 0.80; 
+
+        if (Math.random() < phishChance) {
+           setBotnet(prev => {
+             if (!prev.includes(targetIP)) return [...prev, targetIP];
+             return prev;
+           });
+           setPrivilege('root'); // Payload execution grants root
+           setHeat(h => Math.min(h + 5, 100));
+           setIsProcessing(false);
+           return `[+] SOCIAL ENGINEERING SUCCESSFUL!\n[+] ${emp.name} (${emp.role}) opened the attachment.\n[+] ${payload} executed seamlessly in the background.\n[+] Privileges escalated to ROOT. Node added to botnet.`;
+        } else {
+           setHeat(h => Math.min(h + 20, 100));
+           escalateBlueTeam(targetIP, 30);
+           setIsProcessing(false);
+           return `[-] PHISHING FAILED.\n[-] ${emp.name} recognized the attack and forwarded the email to the SOC.\n[!] Incident logged. Blue Team alert level massively increased. Heat +20%.`;
+        }
+      },
       contracts: async () => {
         if (isInside) return "[-] Exit current session to access contract board.";
         setScreen('contracts'); return '';
