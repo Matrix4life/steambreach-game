@@ -75,6 +75,9 @@ const STEAMBREACH = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [menuIndex, setMenuIndex] = useState(0);
 
+  const [wantedTier, setWantedTier] = useState('COLD');
+  const [walletFrozen, setWalletFrozen] = useState(false);
+
   const [director, setDirector] = useState(DEFAULT_DIRECTOR);
   const directorRef = useRef(DEFAULT_DIRECTOR);
 
@@ -86,8 +89,8 @@ const STEAMBREACH = () => {
     if (inputRef.current && !isProcessing && (screen === 'game' || screen === 'login') && !showHelpMenu) inputRef.current.focus();
   }, [terminal, mapExpanded, screen, isProcessing, showHelpMenu]);
 
-  const activeState = useRef({ heat, botnet, proxies });
-  useEffect(() => { activeState.current = { heat, botnet, proxies }; }, [heat, botnet, proxies]);
+  const activeState = useRef({ heat, botnet, proxies, walletFrozen });
+  useEffect(() => { activeState.current = { heat, botnet, proxies, walletFrozen }; }, [heat, botnet, proxies, walletFrozen]);
 
   const getAllSaveSlots = () => {
     try { return JSON.parse(localStorage.getItem('breach_save_index') || '[]'); } catch { return []; }
@@ -249,6 +252,7 @@ const STEAMBREACH = () => {
     setTerminal([]); setIsInside(false); setTargetIP(null);
     setPrivilege('local'); setCurrentDir('~'); setMapExpanded(false);
     setActiveContract(null);
+    setWantedTier('COLD'); setWalletFrozen(false); lastWantedTier.current = 'COLD';
     setScreen('game');
   };
 
@@ -398,7 +402,148 @@ const STEAMBREACH = () => {
     });
   }, []);
 
+  // ==========================================
+  // WANTED SYSTEM — HEAT CONSEQUENCE ENGINE
+  // ==========================================
+  const lastWantedTier = useRef('COLD');
+
+  const getWantedTier = (h) => {
+    if (h >= 90) return 'MANHUNT';
+    if (h >= 75) return 'CRITICAL';
+    if (h >= 50) return 'HOT';
+    if (h >= 25) return 'WARM';
+    return 'COLD';
+  };
+
+  const getHeatPriceMult = (h) => {
+    if (h >= 90) return 2.0;
+    if (h >= 75) return 1.75;
+    if (h >= 50) return 1.5;
+    if (h >= 25) return 1.25;
+    return 1.0;
+  };
+
+  const WANTED_SIGINT = {
+    WARM: [
+      "[SIGINT] Interpol cyber division has opened a preliminary case file on unknown operator activity.",
+      "[SIGINT] Darknet vendors are marking up prices — too many feds sniffing transactions in your region.",
+      "[SIGINT] A Blue Team analyst posted your TTPs to a threat intel sharing platform. You're on their radar.",
+    ],
+    HOT: [
+      "[SIGINT] FBI Cyber Division has escalated your case. Active investigation underway.",
+      "[SIGINT] Blue Team forensics teams are tracing botnet C2 callbacks. Your infrastructure is exposed.",
+      "[SIGINT] CISA issued an advisory matching your attack patterns. Corporate SOCs are hunting your beacons.",
+      "[SIGINT] Dark web forums report a bounty on your operator identity. Watch your infrastructure.",
+    ],
+    CRITICAL: [
+      "[!!!] INTERPOL RED NOTICE: Your digital fingerprint is flagged across all Five Eyes SIGINT networks.",
+      "[!!!] Financial Intelligence Unit has frozen suspicious transaction channels. Wallet access restricted.",
+      "[!!!] NSA TAO is actively deconstructing your proxy chain. Expect nodes to drop.",
+      "[!!!] Joint cyber task force is triangulating your gateway. Proxy hops are being burned.",
+    ],
+    MANHUNT: [
+      "[!!!] FULL MANHUNT: Every intelligence agency on the planet is hunting you.",
+      "[!!!] ECHELON-class surveillance deployed. Your entire infrastructure is under coordinated attack.",
+      "[!!!] Emergency CERT alert issued to all global SOCs. No safe harbor. Reduce heat or lose everything.",
+    ],
+  };
+
+  useEffect(() => {
+    if (screen !== 'game') return;
+    const wantedTimer = setInterval(() => {
+      const { heat: curHeat, botnet: curBotnet, proxies: curProxies } = activeState.current;
+      const tier = getWantedTier(curHeat);
+      const prevTier = lastWantedTier.current;
+
+      // UPDATE TIER STATE
+      setWantedTier(tier);
+      setWalletFrozen(curHeat >= 75);
+
+      // TIER TRANSITION — SIGINT MESSAGE
+      if (tier !== prevTier && tier !== 'COLD') {
+        const pool = WANTED_SIGINT[tier];
+        if (pool) {
+          const msg = pool[Math.floor(Math.random() * pool.length)];
+          setTerminal(prev => [...prev, { type: 'out', text: `\n${msg}\n`, isNew: true }]);
+        }
+        // CROSSING INTO CRITICAL — ANNOUNCE WALLET FREEZE
+        if (tier === 'CRITICAL' && prevTier !== 'MANHUNT') {
+          setTerminal(prev => [...prev, { type: 'out', text: `[!] WALLET FROZEN: Law enforcement has flagged your transaction channels.\n[!] Shop and market purchases DISABLED until heat drops below 75%.`, isNew: true }]);
+        }
+        // DROPPING OUT OF CRITICAL — ANNOUNCE THAW
+        if ((tier === 'HOT' || tier === 'WARM' || tier === 'COLD') && (prevTier === 'CRITICAL' || prevTier === 'MANHUNT')) {
+          setTerminal(prev => [...prev, { type: 'out', text: `[+] Financial channels re-opened. Wallet restrictions lifted.`, isNew: true }]);
+        }
+        lastWantedTier.current = tier;
+      }
+
+      // HOT (50-74%): BOTNET RAIDS — random C2 node killed
+      if (curHeat >= 50 && curBotnet.length > 0 && Math.random() < 0.12) {
+        const targetNode = curBotnet[Math.floor(Math.random() * curBotnet.length)];
+        setBotnet(prev => {
+          if (!prev.includes(targetNode)) return prev;
+          return prev.filter(ip => ip !== targetNode);
+        });
+        setWorld(prev => {
+          const nodeName = prev[targetNode]?.org?.orgName || targetNode;
+          setTerminal(p => [...p, { type: 'out', text: `\n[ALERT] Blue Team forensics seized C2 beacon on ${nodeName} (${targetNode}).\n[-] Node removed from botnet. ${curBotnet.length - 1} nodes remaining.`, isNew: true }]);
+          return prev;
+        });
+      }
+
+      // CRITICAL (75-89%): PROXY CHAIN TARGETED — random hop burned
+      if (curHeat >= 75 && curProxies.length > 0 && Math.random() < 0.08) {
+        const burnedProxy = curProxies[Math.floor(Math.random() * curProxies.length)];
+        setProxies(prev => prev.filter(ip => ip !== burnedProxy));
+        setBotnet(prev => prev.filter(ip => ip !== burnedProxy));
+        setWorld(prev => {
+          const nodeName = prev[burnedProxy]?.org?.orgName || burnedProxy;
+          const nw = { ...prev }; delete nw[burnedProxy];
+          setTerminal(p => [...p, { type: 'out', text: `\n[!!!] LAW ENFORCEMENT INTERDICTION [!!!]\n[-] Proxy tunnel through ${nodeName} (${burnedProxy}) seized by cyber task force.\n[-] Hop destroyed. Proxy chain degraded.`, isNew: true }]);
+          return nw;
+        });
+      }
+
+      // MANHUNT (90-100%): FORCED DISCONNECT + RAPID DAMAGE
+      if (curHeat >= 90) {
+        // Forced disconnect if inside a node
+        if (Math.random() < 0.15) {
+          setIsInside(prev => {
+            if (prev) {
+              setTargetIP(null); setCurrentDir('~'); setPrivilege('local');
+              setTerminal(p => [...p, { type: 'out', text: `\n[!!!] EMERGENCY DISCONNECT [!!!]\n[-] NSA TAO injected RST packets into your session. Connection killed.\n[-] They know where you are. Lower your heat NOW.`, isNew: true }]);
+            }
+            return false;
+          });
+        }
+        // Accelerated botnet destruction
+        if (curBotnet.length > 0 && Math.random() < 0.20) {
+          const killCount = Math.min(Math.floor(Math.random() * 2) + 1, curBotnet.length);
+          const killed = curBotnet.slice(0, killCount);
+          setBotnet(prev => prev.filter(ip => !killed.includes(ip)));
+          setProxies(prev => prev.filter(ip => !killed.includes(ip)));
+          setTerminal(prev => [...prev, { type: 'out', text: `\n[!!!] COORDINATED TAKEDOWN: ${killCount} botnet node${killCount > 1 ? 's' : ''} seized simultaneously.\n[-] Global law enforcement is dismantling your network.`, isNew: true }]);
+        }
+      }
+
+      // NATURAL HEAT DECAY — slow cooldown when not doing anything loud
+      if (curHeat > 0 && curHeat < 90) {
+        setHeat(h => Math.max(h - 1, 0));
+      } else if (curHeat >= 90) {
+        // Manhunt decay is slower — 50% chance per tick
+        if (Math.random() < 0.5) setHeat(h => Math.max(h - 1, 0));
+      }
+
+    }, 10000); // Tick every 10 seconds
+
+    return () => clearInterval(wantedTimer);
+  }, [screen]);
+
   const handleBuy = (item, cost) => {
+    if (walletFrozen && item !== 'ClearLogs') {
+      setTerminal(prev => [...prev, { type: 'out', text: `[-] WALLET FROZEN: Transaction channels blocked by law enforcement.\n[*] Bribe SOC Insider is still available to reduce heat.`, isNew: true }]);
+      return;
+    }
     if (item !== 'ClearLogs' && inventory.includes(item)) return;
     if (money >= cost) {
       setMoney(m => m - cost);
@@ -409,7 +554,10 @@ const STEAMBREACH = () => {
 
   const handleMarketTrade = (action, itemKey, qty) => {
     if (action === 'buy') {
-        const cost = marketPrices[itemKey] * qty;
+        if (walletFrozen) return; // UI should show this, but guard here too
+        const priceMult = getHeatPriceMult(heat);
+        const inflatedPrice = Math.ceil(marketPrices[itemKey] * priceMult);
+        const cost = inflatedPrice * qty;
         if (money >= cost) {
             setMoney(m => m - cost);
             setStash(s => ({ ...s, [itemKey]: (s[itemKey] || 0) + qty }));
@@ -662,26 +810,31 @@ const STEAMBREACH = () => {
       
       market: async () => {
         if (isInside) return `[-] Cannot access Black Market while inside a target. Return to gateway.`;
+        if (walletFrozen) return `[-] WALLET FROZEN: Black Market access restricted by law enforcement.\n[*] Reduce heat below 75% first. You can still sell via 'sell <item> <qty>'.`;
         setScreen('market');
         return '';
       },
 
       buy: async () => {
         if (isInside) return `[-] Cannot trade while inside a target.`;
+        if (walletFrozen) return `[-] WALLET FROZEN: Transaction channels blocked by law enforcement.\n[*] Reduce heat below 75% to restore access. Try 'wipe' on rooted nodes or Bribe SOC Insider.`;
         if (!arg1 || !args[2]) return `[-] Usage: buy <item> <qty>\n[*] Items: cc_dumps, botnets, exploits, zerodays`;
         const itemKey = arg1.toLowerCase();
         const qty = parseInt(args[2]);
         if (!COMMODITIES[itemKey]) return `[-] Unknown commodity: ${itemKey}`;
         if (isNaN(qty) || qty <= 0) return `[-] Invalid quantity.`;
         
-        const pricePerUnit = marketPrices[itemKey];
-        const totalCost = pricePerUnit * qty;
+        const priceMult = getHeatPriceMult(heat);
+        const inflatedPrice = Math.ceil(marketPrices[itemKey] * priceMult);
+        const totalCost = inflatedPrice * qty;
         
         if (money < totalCost) return `[-] Insufficient funds. Need $${totalCost.toLocaleString()}. You have $${money.toLocaleString()}.`;
         
         setMoney(m => m - totalCost);
         setStash(prev => ({ ...prev, [itemKey]: (prev[itemKey] || 0) + qty }));
-        return `[+] Purchased ${qty}x ${COMMODITIES[itemKey].name} for $${totalCost.toLocaleString()}.`;
+        let out = `[+] Purchased ${qty}x ${COMMODITIES[itemKey].name} for $${totalCost.toLocaleString()}.`;
+        if (priceMult > 1) out += `\n[!] Heat surcharge: prices inflated ${Math.round((priceMult - 1) * 100)}% due to law enforcement attention.`;
+        return out;
       },
 
       sell: async () => {
@@ -1788,14 +1941,33 @@ const STEAMBREACH = () => {
         saveGame(`auto_${operator}`); setScreen('intro'); setMenuMode('main'); setDeleteTarget(null); setMenuIndex(0); return '';
       },
       reset_grid: async () => { localStorage.clear(); window.location.reload(); return "PURGING..."; },
-      shop: async () => { if (isInside) return "[-] Exit session first."; setScreen('shop'); return ''; },
+      shop: async () => { 
+        if (isInside) return "[-] Exit session first."; 
+        if (walletFrozen) {
+          setScreen('shop');
+          return `[!] WARNING: Wallet frozen. Only Bribe SOC Insider available until heat drops below 75%.`;
+        }
+        setScreen('shop'); return ''; 
+      },
       status: async () => {
         const d = director; const score = d.skillScore; const maxHops = getMaxProxySlots(inventory, d.modifiers);
         let threatLevel = 'STANDARD';
         if (score >= 40) threatLevel = 'CRITICAL'; else if (score >= 15) threatLevel = 'ELEVATED';
         else if (score <= -40) threatLevel = 'DORMANT'; else if (score <= -15) threatLevel = 'REDUCED';
+        const priceMult = getHeatPriceMult(heat);
+        const priceStr = priceMult > 1 ? `+${Math.round((priceMult - 1) * 100)}%` : 'NORMAL';
+        let wantedInfo = '';
+        if (wantedTier === 'COLD') wantedInfo = '  No active law enforcement interest.';
+        else if (wantedTier === 'WARM') wantedInfo = '  Preliminary investigation opened. Market prices inflated.';
+        else if (wantedTier === 'HOT') wantedInfo = '  Active FBI investigation. Botnet nodes being raided. Prices inflated.';
+        else if (wantedTier === 'CRITICAL') wantedInfo = '  INTERPOL red notice. Proxy hops targeted. Wallet FROZEN. Prices inflated.';
+        else if (wantedTier === 'MANHUNT') wantedInfo = '  FULL MANHUNT. All infrastructure under coordinated attack. Wallet FROZEN.';
         return `OPERATOR STATUS REPORT
 ────────────────────────────────────
+WANTED LEVEL: ${wantedTier} (HEAT ${heat}%)
+${wantedInfo}
+MARKET PRICES: ${priceStr}${walletFrozen ? ' | WALLET: FROZEN' : ' | WALLET: ACTIVE'}
+
 THREAT ASSESSMENT: ${threatLevel}
 GLOBAL SOC POSTURE: ${score >= 15 ? 'AGGRESSIVE' : score <= -15 ? 'DISTRACTED' : 'NOMINAL'}
 PROXY CHAIN CAPACITY: ${proxies.length}/${maxHops} HOPS
@@ -1806,7 +1978,7 @@ NODES LOOTED: ${d.metrics.nodesLooted}
 INVENTORY:
   DECOYS: ${consumables.decoy} | BURNER VPNS: ${consumables.burner} | ZERO-DAYS: ${consumables.zeroday}
 ────────────────────────────────────
-${score >= 40 ? '[!] Intel suggests coordinated Blue Team response to your recent activity.' : ''}${score <= -15 ? '[*] Sector defenses appear weakened. Favorable conditions for operations.' : ''}`;
+${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network is being dismantled.' : ''}${wantedTier === 'CRITICAL' ? '[!] Wallet frozen. Use wipe on rooted nodes or Bribe SOC Insider to reduce heat.' : ''}${wantedTier === 'HOT' ? '[!] Botnet nodes are being raided. Consider wiping logs or bribing SOC.' : ''}${score >= 40 ? '[!] Blue Team response elevated due to your skill profile.' : ''}${score <= -15 ? '[*] Sector defenses weakened. Favorable conditions.' : ''}`;
       },
       help: async () => {
         setShowHelpMenu(true);
@@ -2106,6 +2278,7 @@ ${score >= 40 ? '[!] Intel suggests coordinated Blue Team response to your recen
 
       <Header
         operator={operator} privilege={privilege} money={money} heat={heat} reputation={reputation} isInside={isInside} targetIP={targetIP} trace={trace} isChatting={isChatting} activeContract={activeContract} world={world} gameMode={gameMode}
+        wantedTier={wantedTier} walletFrozen={walletFrozen}
         onSave={() => { saveGame(operator); setTerminal(prev => [...prev, { type: 'out', text: `[+] Game saved: "${operator}"`, isNew: true }]); }}
         onMenu={() => { if (!isInside) { saveGame(`auto_${operator}`); setScreen('intro'); setMenuMode('main'); setDeleteTarget(null); setMenuIndex(0); } }}
         onHelp={() => setShowHelpMenu(prev => !prev)}
