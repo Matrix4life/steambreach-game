@@ -65,7 +65,8 @@ const COMMAND_REGISTRY = [
   { cmd: 'save', desc: 'Save current progress' },
   { cmd: 'menu', desc: 'Return to main menu' },
   { cmd: 'ssh <user@ip> <pass>', desc: 'Log in using stolen credentials (0 trace)' },
-  { cmd: 'sendmail -to <user> -attach <file>', desc: 'Spoof internal emails (requires shell)' }
+  { cmd: 'sendmail -to <user> -attach <file>', desc: 'Spoof internal emails (requires shell)' },
+  { cmd: 'john <file>', desc: 'CPU-optimized local password cracker' }
 ];
 
 const DEV_COMMANDS = [
