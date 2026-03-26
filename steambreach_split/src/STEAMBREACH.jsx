@@ -27,6 +27,8 @@ import Header from './components/Header';
 import ContractBoard from './components/ContractBoard';
 import MarketBoard from './components/MarketBoard';
 import DarknetShop from './components/DarknetShop';
+import { playSuccess, playFailure, playRootShell, playExfil, 
+         playTraceWarning, playHeatSpike, playBeacon, playDestroy } from './audio/soundEngine';
 
 const STEAMBREACH = () => {
   const [apiKey, setApiKey] = useState(localStorage.getItem('breach_api_key') || '');
