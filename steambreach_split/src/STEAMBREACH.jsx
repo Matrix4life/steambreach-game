@@ -1,3 +1,5 @@
+import { playSuccess, playFailure, playRootShell, playExfil, 
+         playTraceWarning, playHeatSpike, playBeacon, playDestroy, playBlip } from './audio/soundEngine';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   HOURLY_RATE,
@@ -27,8 +29,6 @@ import Header from './components/Header';
 import ContractBoard from './components/ContractBoard';
 import MarketBoard from './components/MarketBoard';
 import DarknetShop from './components/DarknetShop';
-import { playSuccess, playFailure, playRootShell, playExfil, 
-         playTraceWarning, playHeatSpike, playBeacon, playDestroy } from './audio/soundEngine';
 
 const STEAMBREACH = () => {
   const [apiKey, setApiKey] = useState(localStorage.getItem('breach_api_key') || '');
@@ -96,13 +96,14 @@ const STEAMBREACH = () => {
     if (screen !== 'game') return;
     const focusKeeper = setInterval(() => {
       if (inputRef.current && !isProcessing && !showHelpMenu && document.activeElement !== inputRef.current) {
-        // Don't steal focus from shop/market/contract overlays
+        // Don't steal focus from buttons, inputs, or active text selections
         const activeTag = document.activeElement?.tagName;
-        if (activeTag !== 'BUTTON' && activeTag !== 'INPUT') {
+        const hasSelection = window.getSelection()?.toString().length > 0;
+        if (activeTag !== 'BUTTON' && activeTag !== 'INPUT' && !hasSelection) {
           inputRef.current.focus();
         }
       }
-    }, 300);
+    }, 500);
     return () => clearInterval(focusKeeper);
   }, [screen, isProcessing, showHelpMenu]);
 
@@ -2516,7 +2517,7 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
   );
 
   return (
-    <div onClick={() => { if (inputRef.current && !isProcessing && screen === 'game') inputRef.current.focus(); }} style={{
+    <div onMouseDown={(e) => { if (e.target === e.currentTarget && inputRef.current && !isProcessing && screen === 'game') inputRef.current.focus(); }} style={{
       background: COLORS.bg, color: COLORS.text, position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
       display: 'flex', flexDirection: 'column', padding: '12px 16px', fontFamily: "'Consolas', 'Fira Code', 'JetBrains Mono', monospace",
       overflow: 'hidden', boxSizing: 'border-box', fontSize: '13px'
@@ -2562,7 +2563,7 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
         />
       </div>
 
-      <div onClick={() => { if (inputRef.current && !isProcessing) inputRef.current.focus(); }} style={{ flexGrow: 1, overflowY: 'auto', margin: '4px 0', paddingRight: '8px', scrollbarWidth: 'thin', scrollbarColor: `${COLORS.border} transparent`, cursor: 'text' }}>
+      <div style={{ flexGrow: 1, overflowY: 'auto', margin: '4px 0', paddingRight: '8px', scrollbarWidth: 'thin', scrollbarColor: `${COLORS.border} transparent` }}>
         {terminal.map((t, i) => {
           let inColor = isChatting ? COLORS.chat : (t.remote ? COLORS.primary : COLORS.textDim);
           return (
@@ -2576,7 +2577,7 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
         <div ref={terminalEndRef} style={{ height: '8px' }} />
       </div>
 
-      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', borderTop: `1px solid ${trace > 75 ? COLORS.danger + '60' : COLORS.border}`, paddingTop: '8px', background: trace > 75 ? `${COLORS.danger}08` : 'transparent' }}>
+      <div onClick={() => { if (inputRef.current) inputRef.current.focus(); }} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', borderTop: `1px solid ${trace > 75 ? COLORS.danger + '60' : COLORS.border}`, paddingTop: '8px', background: trace > 75 ? `${COLORS.danger}08` : 'transparent', cursor: 'text' }}>
         <span style={{ color: isChatting ? COLORS.chat : (isInside ? COLORS.primary : COLORS.textDim), opacity: isProcessing ? 0.4 : 1, whiteSpace: 'nowrap', fontSize: '12px' }}>
           {isChatting ? `chat@${chatTarget} ` : `${currentDir} `} <span style={{ color: COLORS.secondary }}>$</span>
         </span>
