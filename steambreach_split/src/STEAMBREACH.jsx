@@ -2363,7 +2363,6 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
                   { id: 'operator', name: 'OPERATOR', desc: 'Full real syntax. Parse real output. No hand-holding.', color: COLORS.danger, mult: '4x' },
                 ].map((m, idx) => (
                   <div key={m.id} 
-                    onMouseEnter={() => setGameMode(m.id)}
                     onClick={() => setGameMode(m.id)} 
                     style={{
                       border: `1px solid ${gameMode === m.id ? m.color : COLORS.border}`, background: gameMode === m.id ? `${m.color}10` : 'transparent',
