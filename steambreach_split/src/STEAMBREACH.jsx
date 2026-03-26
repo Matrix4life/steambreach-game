@@ -2413,16 +2413,16 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
           AUDIO MANAGER
         </button>
         <button 
-          onMouseEnter={() => setMenuIndex(0)}
-          onClick={() => { setMenuMode('newgame'); setMenuIndex(0); setOperator(''); }}
+          onMouseEnter={() => setMenuIndex(-1)}
+          onClick={() => setScreen('soundmanager')} 
           style={{
-            background: menuIndex === 0 ? `${COLORS.primary}20` : COLORS.bgPanel, 
+            background: menuIndex === -1 ? `${COLORS.primary}20` : COLORS.bgPanel, 
             color: COLORS.primary, 
-            border: `1px solid ${menuIndex === 0 ? COLORS.primary : COLORS.border}`,
+            border: `1px solid ${menuIndex === -1 ? COLORS.primary : COLORS.border}`,
             padding: '12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px', 
-            borderRadius: '3px', letterSpacing: '2px', transition: 'background 0.15s',
+            borderRadius: '3px', letterSpacing: '2px', transition: 'all 0.15s'
           }}>
-          {menuIndex === 0 ? '▶ ' : '  '}NEW GAME
+          {menuIndex === -1 ? '▶ ' : '  '}AUDIO MANAGER
         </button>
               
              <button 
