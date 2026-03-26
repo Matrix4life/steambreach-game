@@ -1,19 +1,3 @@
-import SoundManager, { setSoundMap } from './components/SoundManager';
-
-// Add state:
-const [soundMap, setSoundMapState] = useState({});
-
-// Pass to soundEngine whenever it changes:
-useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
-
-// Add screen:
-if (screen === 'sounds') return (
-  <SoundManager
-    returnToGame={() => setScreen('game')}
-    onSoundMapChange={setSoundMapState}
-  />
-);
-
 import { playSuccess, playFailure, playRootShell, playExfil, 
          playTraceWarning, playHeatSpike, playBeacon, playDestroy, playBlip } from './audio/soundEngine';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
@@ -45,6 +29,21 @@ import Header from './components/Header';
 import ContractBoard from './components/ContractBoard';
 import MarketBoard from './components/MarketBoard';
 import DarknetShop from './components/DarknetShop';
+import SoundManager, { setSoundMap } from './components/SoundManager';
+
+// Add state:
+const [soundMap, setSoundMapState] = useState({});
+
+// Pass to soundEngine whenever it changes:
+useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
+
+// Add screen:
+if (screen === 'sounds') return (
+  <SoundManager
+    returnToGame={() => setScreen('game')}
+    onSoundMapChange={setSoundMapState}
+  />
+);
 
 const STEAMBREACH = () => {
   const [apiKey, setApiKey] = useState(localStorage.getItem('breach_api_key') || '');
