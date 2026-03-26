@@ -7,7 +7,8 @@ const [soundMap, setSoundMapState] = useState({});
 useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
 
 // Add screen:
-if (screen === 'sounds') return (
+if (screen === 'sounds') 
+  return (
   <SoundManager
     returnToGame={() => setScreen('game')}
     onSoundMapChange={setSoundMapState}
