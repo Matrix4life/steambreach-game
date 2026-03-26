@@ -1,6 +1,17 @@
-import { playSuccess, playFailure, playRootShell, playExfil, 
-         playTraceWarning, playHeatSpike, playBeacon, playDestroy, playBlip } from './audio/soundEngine';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import SoundManager from './components/SoundManager';
+import {
+  setSoundMap,
+  playSuccess,
+  playFailure,
+  playRootShell,
+  playExfil,
+  playTraceWarning,
+  playHeatSpike,
+  playBeacon,
+  playDestroy,
+  playBlip
+} from './audio/soundEngine';
 import {
   HOURLY_RATE,
   COLORS,
@@ -30,6 +41,7 @@ import ContractBoard from './components/ContractBoard';
 import MarketBoard from './components/MarketBoard';
 import DarknetShop from './components/DarknetShop';
 import SoundManager, { setSoundMap } from './components/SoundManager';
+
 
 
 
