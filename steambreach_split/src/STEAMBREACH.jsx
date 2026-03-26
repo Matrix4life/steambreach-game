@@ -162,14 +162,7 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
     return () => window.removeEventListener('keydown', handleGlobalKey);
   }, [screen, isInside, isChatting, operator, showHelpMenu]);
 
-  if (screen === 'soundmanager') {
-    return (
-      <SoundManager 
-        returnToGame={() => setScreen('menu')} 
-        onSoundMapChange={(map) => soundEngine.setSoundMap(map)}
-      />
-    );
-  }
+ 
   useEffect(() => {
     if (screen !== 'intro') return;
 
@@ -2631,7 +2624,16 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
       onSoundMapChange={setSoundMapState}
     />
   );
-
+  
+if (screen === 'soundmanager') {
+    return (
+      <SoundManager 
+        returnToGame={() => setScreen('')} 
+        onSoundMapChange={(map) => soundEngine.setSoundMap(map)}
+      />
+    );
+  }
+  
   return (
     <div onMouseDown={(e) => { if (e.target === e.currentTarget && inputRef.current && !isProcessing && screen === 'game') inputRef.current.focus(); }} style={{
       background: COLORS.bg, color: COLORS.text, position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
