@@ -46,6 +46,7 @@ const Header = ({ operator, privilege, money, heat, reputation, isInside, target
           <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
             <span style={{ color: modeColor, fontSize: '8px', border: `1px solid ${modeColor}40`, padding: '1px 4px', borderRadius: '2px', letterSpacing: '1px' }}>{modeLabel}</span>
             <button onClick={onHelp} style={btnStyle}>?</button>
+            <button onClick={onSounds}>AUDIO</button>
             <button onClick={onSave} style={btnStyle}>SAVE</button>
             <button onClick={onMenu} disabled={isInside} style={{ ...btnStyle, opacity: isInside ? 0.3 : 1, cursor: isInside ? 'default' : 'pointer' }}>MENU</button>
           </span>
