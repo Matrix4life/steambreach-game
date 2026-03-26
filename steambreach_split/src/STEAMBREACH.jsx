@@ -6,6 +6,13 @@ const [soundMap, setSoundMapState] = useState({});
 // Pass to soundEngine whenever it changes:
 useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
 
+// Add screen:
+if (screen === 'sounds') return (
+  <SoundManager
+    returnToGame={() => setScreen('game')}
+    onSoundMapChange={setSoundMapState}
+  />
+);
 
 import { playSuccess, playFailure, playRootShell, playExfil, 
          playTraceWarning, playHeatSpike, playBeacon, playDestroy, playBlip } from './audio/soundEngine';
@@ -2377,7 +2384,8 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
 
           {menuMode === 'main' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '300px', margin: '0 auto' }}>
-              <button 
+              <button onClick={() => setScreen('sounds')}>AUDIO</button>
+                  <button 
                 onMouseEnter={() => setMenuIndex(0)}
                 onClick={() => { setMenuMode('newgame'); setMenuIndex(0); setOperator(''); }} 
                 style={{
