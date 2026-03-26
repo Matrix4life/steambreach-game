@@ -2406,6 +2406,19 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
           }}>
           {menuIndex === -1 ? '▶ ' : '  '}AUDIO MANAGER
         </button>
+
+              <button 
+                onMouseEnter={() => setMenuIndex(0)}
+                onClick={() => { setMenuMode('newgame'); setMenuIndex(0); setOperator(''); }} 
+                style={{
+                  background: menuIndex === 0 ? `${COLORS.secondary}20` : COLORS.bgPanel, 
+                  color: menuIndex === 0 ? COLORS.secondary : COLORS.text, 
+                  border: `1px solid ${menuIndex === 0 ? COLORS.secondary : COLORS.border}`,
+                  padding: '12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px', 
+                  borderRadius: '3px', letterSpacing: '2px', transition: 'all 0.15s'
+                }}>
+                {menuIndex === 0 ? '▶ ' : '  '}NEW GAME
+              </button>
               
              <button 
           onMouseEnter={() => setMenuIndex(1)}
