@@ -2603,6 +2603,7 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
         onSave={() => { saveGame(operator); setTerminal(prev => [...prev, { type: 'out', text: `[+] Game saved: "${operator}"`, isNew: true }]); }}
         onMenu={() => { if (!isInside) { saveGame(`auto_${operator}`); setScreen('intro'); setMenuMode('main'); setDeleteTarget(null); setMenuIndex(0); } }}
         onHelp={() => setShowHelpMenu(prev => !prev)}
+        onSounds={() => setScreen('sounds')}
       />
 
       {devMode && (
