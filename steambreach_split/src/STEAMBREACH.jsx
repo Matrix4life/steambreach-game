@@ -2410,7 +2410,7 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
             padding: '12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px', 
             borderRadius: '3px', letterSpacing: '2px', transition: 'all 0.15s'
           }}>
-          AUDIO MANAGER
+          
         </button>
         <button 
           onMouseEnter={() => setMenuIndex(-1)}
