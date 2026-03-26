@@ -41,6 +41,8 @@ import Header from './components/Header';
 import ContractBoard from './components/ContractBoard';
 import MarketBoard from './components/MarketBoard';
 import DarknetShop from './components/DarknetShop';
+import HardwareMarket from './components/HardwareMarket';
+import { PARTS_BY_ID, generateMarketStock, getSellPrice, getRigEffects } from './constants/rigParts';
 
 
 
@@ -66,6 +68,9 @@ const STEAMBREACH = () => {
   const [looted, setLooted] = useState([]);
   const [wipedNodes, setWipedNodes] = useState([]);
   const [inventory, setInventory] = useState([]);
+  const [rig, setRig] = useState({ cpu:null, gpu:null, ram:null, ssd:null, psu:null, cool:null, net:null, case:null });
+  const [partsBag, setPartsBag] = useState([]);
+  const [hwMarketData, setHwMarketData] = useState(null);
   
   const [currentRegion, setCurrentRegion] = useState('us-gov');
   const [marketPrices, setMarketPrices] = useState(generateMarketPrices());
@@ -222,7 +227,7 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
 
   const collectCurrentState = () => ({
     operator, gameMode, money, reputation, heat, botnet, proxies, looted, wipedNodes,
-    inventory, consumables, stash, currentRegion, marketPrices, world, unlockedFiles, contracts, director, timestamp: Date.now(),
+    inventory, rig, partsBag, consumables, stash, currentRegion, marketPrices, world, unlockedFiles, contracts, director, timestamp: Date.now(),
   });
 
   const applySaveData = (data) => {
@@ -234,6 +239,8 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
     setLooted(data.looted || []);
     setWipedNodes(data.wipedNodes || []);
     setInventory(data.inventory || []);
+    setRig(data.rig || { cpu:null, gpu:null, ram:null, ssd:null, psu:null, cool:null, net:null, case:null });
+    setPartsBag(data.partsBag || []);
     setConsumables(data.consumables || { decoy: 0, burner: 0, zeroday: 0 });
     setStash(data.stash || { cc_dumps: 0, botnets: 0, exploits: 0, zerodays: 0 });
     setCurrentRegion(data.currentRegion || 'us-gov');
@@ -287,6 +294,8 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
     setMoney(0); setReputation(0); setHeat(0);
     setBotnet([]); setProxies([]); setLooted([]); setWipedNodes([]);
     setInventory([]); setConsumables({ decoy: 0, burner: 0, zeroday: 0 }); 
+    setRig({ cpu:null, gpu:null, ram:null, ssd:null, psu:null, cool:null, net:null, case:null });
+    setPartsBag([]); setHwMarketData(null);
     setStash({ cc_dumps: 0, botnets: 0, exploits: 0, zerodays: 0 });
     setCurrentRegion('us-gov'); setMarketPrices(generateMarketPrices());
     setUnlockedFiles([]); setContracts([]);
@@ -600,6 +609,67 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
       if (item === 'ClearLogs') setHeat(h => Math.max(h - 50, 0));
       else setInventory(inv => [...inv, item]);
     }
+  };
+
+  // ─── HARDWARE MARKET HANDLERS ─────────────────────────────
+  const openHardwareMarket = () => {
+    if (!hwMarketData || hwMarketData.region !== currentRegion) {
+      setHwMarketData(generateMarketStock(currentRegion));
+    }
+    setScreen('hardware');
+  };
+
+  const handleHwBuy = (partId, price) => {
+    if (walletFrozen) return;
+    if (money < price) return;
+    setMoney(m => m - price);
+    setPartsBag(bag => [...bag, partId]);
+    // Reduce stock
+    setHwMarketData(prev => {
+      if (!prev) return prev;
+      const stock = prev.stock.map(s =>
+        s.partId === partId ? { ...s, qty: Math.max(0, s.qty - 1) } : s
+      );
+      return { ...prev, stock };
+    });
+  };
+
+  const handleHwSell = (partId) => {
+    const sellP = getSellPrice(partId, hwMarketData?.stock || []);
+    // Remove from partsBag first, then from rig if installed
+    const bagIdx = partsBag.indexOf(partId);
+    if (bagIdx >= 0) {
+      setPartsBag(bag => { const n = [...bag]; n.splice(bagIdx, 1); return n; });
+    } else {
+      // Must be installed — uninstall first
+      const part = PARTS_BY_ID[partId];
+      if (part) setRig(r => ({ ...r, [part.slot]: null }));
+    }
+    setMoney(m => m + sellP);
+  };
+
+  const handleHwInstall = (partId) => {
+    const part = PARTS_BY_ID[partId];
+    if (!part) return;
+    const slot = part.slot;
+    const currentPart = rig[slot];
+    // Swap: move current part to bag if slot occupied
+    if (currentPart) {
+      setPartsBag(bag => [...bag, currentPart]);
+    }
+    // Remove from bag and install
+    const bagIdx = partsBag.indexOf(partId);
+    if (bagIdx >= 0) {
+      setPartsBag(bag => { const n = [...bag]; n.splice(bagIdx, 1); return n; });
+    }
+    setRig(r => ({ ...r, [slot]: partId }));
+  };
+
+  const handleHwUninstall = (slot) => {
+    const partId = rig[slot];
+    if (!partId) return;
+    setRig(r => ({ ...r, [slot]: null }));
+    setPartsBag(bag => [...bag, partId]);
   };
 
   const handleMarketTrade = (action, itemKey, qty) => {
@@ -2257,6 +2327,16 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
         }
         setScreen('shop'); return ''; 
       },
+      hardware: async () => {
+        if (isInside) return "[-] Exit session first.";
+        openHardwareMarket();
+        return '';
+      },
+      rig: async () => {
+        if (isInside) return "[-] Exit session first.";
+        openHardwareMarket();
+        return '';
+      },
       status: async () => {
         const d = director; const score = d.skillScore; const maxHops = getMaxProxySlots(inventory, d.modifiers);
         let threatLevel = 'STANDARD';
@@ -2608,6 +2688,16 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
       </div>
     );
   }
+
+  if (screen === 'hardware') return (
+    <HardwareMarket
+      money={money} rig={rig} partsBag={partsBag}
+      marketData={hwMarketData} currentRegion={currentRegion}
+      onBuy={handleHwBuy} onSell={handleHwSell}
+      onInstall={handleHwInstall} onUninstall={handleHwUninstall}
+      returnToGame={() => setScreen('game')}
+    />
+  );
 
   if (screen === 'shop') return (
     <DarknetShop money={money} reputation={reputation} inventory={inventory} handleBuy={handleBuy} returnToGame={() => setScreen('game')} />
