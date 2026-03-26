@@ -2400,10 +2400,17 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
 
           {menuMode === 'main' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '300px', margin: '0 auto' }}>
-             <button onClick={() => setScreen('soundmanager')} style={btnStyle}>
+          <button 
+          onClick={() => setScreen('soundmanager')} 
+          style={{
+            background: COLORS.bgPanel, 
+            color: COLORS.primary, 
+            border: `1px solid ${COLORS.border}`,
+            padding: '12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px', 
+            borderRadius: '3px', letterSpacing: '2px', transition: 'background 0.15s'
+          }}>
           AUDIO MANAGER
         </button>
-
         <button 
           onMouseEnter={() => setMenuIndex(0)}
           onClick={() => { setMenuMode('newgame'); setMenuIndex(0); setOperator(''); }}
