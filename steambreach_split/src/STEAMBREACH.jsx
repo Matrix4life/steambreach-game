@@ -2579,12 +2579,13 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
   if (screen === 'contracts') return (
     <ContractBoard contracts={contracts} activeContract={activeContract} acceptContract={acceptContract} returnToGame={() => setScreen('game')} />
   );
+  
   if (screen === 'sounds') return (
-  <SoundManager
-    returnToGame={() => setScreen('game')}
-    onSoundMapChange={setSoundMapState}
-  />
-);
+    <SoundManager
+      returnToGame={() => setScreen('game')}
+      onSoundMapChange={setSoundMapState}
+    />
+  );
 
   return (
     <div onMouseDown={(e) => { if (e.target === e.currentTarget && inputRef.current && !isProcessing && screen === 'game') inputRef.current.focus(); }} style={{
