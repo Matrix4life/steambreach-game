@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import SoundManager from './components/SoundManager';
+import * as soundEngine from './soundEngine';
 import {
   setSoundMap,
   playSuccess,
@@ -107,18 +108,12 @@ const [soundMap, setSoundMapState] = useState({});
 // Pass to soundEngine whenever it changes:
 useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
 
-// Add screen:
-if (screen === 'sounds') return (
-  <SoundManager
-    returnToGame={() => setScreen('game')}
-    onSoundMapChange={setSoundMapState}
-  />
-);
-
   useEffect(() => {
     if (terminalEndRef.current) terminalEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
     if (inputRef.current && !isProcessing && (screen === 'game' || screen === 'login') && !showHelpMenu) inputRef.current.focus();
   }, [terminal, mapExpanded, screen, isProcessing, showHelpMenu]);
+
+  
 
   // PERSISTENT FOCUS KEEPER — grabs focus back after any steal
   useEffect(() => {
@@ -167,6 +162,14 @@ if (screen === 'sounds') return (
     return () => window.removeEventListener('keydown', handleGlobalKey);
   }, [screen, isInside, isChatting, operator, showHelpMenu]);
 
+  if (screen === 'soundmanager') {
+    return (
+      <SoundManager 
+        returnToGame={() => setScreen('menu')} 
+        onSoundMapChange={(map) => soundEngine.setSoundMap(map)}
+      />
+    );
+  }
   useEffect(() => {
     if (screen !== 'intro') return;
 
@@ -2391,14 +2394,15 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.4) 100%)', pointerEvents: 'none', zIndex: 99 }} />
 
         <div style={{ textAlign: 'center', zIndex: 10 }}>
-          <div style={{ fontSize: '11px', color: COLORS.textDim, letterSpacing: '6px', marginBottom: '8px' }}>ANTHROPIC PRESENTS</div>
+          <div style={{ fontSize: '11px', color: COLORS.textDim, letterSpacing: '6px', marginBottom: '8px' }}></div>
           <h1 style={{ color: COLORS.primary, fontSize: '32px', fontWeight: 'normal', letterSpacing: '8px', margin: '0 0 4px 0' }}>STEAMBREACH</h1>
           <div style={{ fontSize: '10px', color: COLORS.textDim, letterSpacing: '3px', marginBottom: '32px' }}>AI-POWERED NETWORK EXPLOITATION SIMULATOR</div>
 
           {menuMode === 'main' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '300px', margin: '0 auto' }}>
-              <button onClick={() => setScreen('sounds')}>AUDIO</button>
-                  <button 
+              <button onClick={() => setScreen('soundmanager')} style={btnStyle}>
+  AUDIO MANAGER
+</button>
                 onMouseEnter={() => setMenuIndex(0)}
                 onClick={() => { setMenuMode('newgame'); setMenuIndex(0); setOperator(''); }} 
                 style={{
