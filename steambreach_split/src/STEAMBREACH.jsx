@@ -386,6 +386,8 @@ const STEAMBREACH = () => {
           return;
         }
         setTrace(prev => {
+          // Play warning sound when trace crosses 75
+          if (prev < 75 && prev + 1 >= 75) playTraceWarning();
           if (prev >= 99) {
             setIsInside(false); setTargetIP(null); setCurrentDir('~'); setPrivilege('local');
             trackTraced();
@@ -396,6 +398,7 @@ const STEAMBREACH = () => {
               setTerminal(prev => [...prev.map(t => ({ ...t, isNew: false })), { type: 'out', text: `\n[!!!] TRACE COMPLETE: PROXY BURNED [!!!]\n[-] Traffic terminated at tunnel: ${burned}. You are SAFE.\n`, isNew: true }]);
             } else {
               setHeat(h => Math.min(h + 20, 100));
+              playHeatSpike();
               setTerminal(prev => [...prev.map(t => ({ ...t, isNew: false })), { type: 'out', text: `\n[!!!] TRACE COMPLETE. CONNECTION SEVERED. HEAT +20% [!!!]\n`, isNew: true }]);
             }
             return 0;
@@ -483,6 +486,10 @@ const STEAMBREACH = () => {
         if (pool) {
           const msg = pool[Math.floor(Math.random() * pool.length)];
           setTerminal(prev => [...prev, { type: 'out', text: `\n${msg}\n`, isNew: true }]);
+        }
+        // Heat spike sound on tier escalation
+        if (['HOT', 'CRITICAL', 'MANHUNT'].includes(tier) && !['HOT', 'CRITICAL', 'MANHUNT'].includes(prevTier)) {
+          playHeatSpike();
         }
         // CROSSING INTO CRITICAL — ANNOUNCE WALLET FREEZE
         if (tier === 'CRITICAL' && prevTier !== 'MANHUNT') {
@@ -696,14 +703,21 @@ const STEAMBREACH = () => {
       if (!node) return `[-] Target ${targetIPArg} not found.`;
       
       if (node.isHoneypot) {
+        playFailure();
+        playHeatSpike();
         setHeat(h => Math.min(h + 40, 100));
         setWorld(prev => { const nw = { ...prev }; delete nw[targetIPArg]; return nw; });
         trackHoneypot(); trackExploit(false);
         return `[!!!] HONEYPOT TRIGGERED [!!!]\n[-] Blue Team trap. IP logged by SOC. HEAT +40%`;
       }
       
-      if (node.exp !== toolName) { trackExploit(false); return `[-] ${toolName}: Exploit failed. Wrong attack vector.`; }
+      if (node.exp !== toolName) {
+        playFailure();
+        trackExploit(false);
+        return `[-] ${toolName}: Exploit failed. Wrong attack vector.`;
+      }
       
+      playSuccess();
       setIsInside(true); setTargetIP(targetIPArg); setCurrentDir('/'); setPrivilege('www-data');
       let startTrace = Math.floor(heat / 3);
       if (node.sec === 'high') startTrace += 20;
@@ -742,13 +756,12 @@ const STEAMBREACH = () => {
         const exfilKey = `rclone_${targetIP}`;
         if (looted.includes(exfilKey)) return "[-] rclone: Target filesystem already drained of valuable intel.";
 
-        // --- GAME MODE SCALING ---
         let totalSize, heatPerTick, loops, delay, reqProxies;
         if (gameMode === 'arcade') {
             totalSize = 400; heatPerTick = 10; loops = 3; delay = 800; reqProxies = 0;
         } else if (gameMode === 'operator') {
             totalSize = 1500; heatPerTick = 20; loops = 5; delay = 1500; reqProxies = 2;
-        } else { // field
+        } else {
             totalSize = 800; heatPerTick = 15; loops = 4; delay = 1200; reqProxies = 0;
         }
 
@@ -764,16 +777,14 @@ const STEAMBREACH = () => {
         let transferred = 0;
         for (let i = 0; i < loops; i++) {
           transferred += Math.floor(totalSize / loops);
-          
           setHeat(h => Math.min(h + heatPerTick, 100));
-          if (gameMode === 'operator') setTrace(t => Math.min(t + 10, 100)); // Extra punishment in Operator
-          
+          if (gameMode === 'operator') setTrace(t => Math.min(t + 10, 100));
           setTerminal(prev => [...prev, { type: 'out', text: `[*] Transferred: ${transferred} GB / ${totalSize} GB...`, isNew: false }]);
           await new Promise(r => setTimeout(r, delay));
         }
         
+        playExfil();
         setLooted(prev => [...prev, exfilKey]);
-        // Operator mode yields double intel due to the massive risk/file size
         setConsumables(prev => ({ ...prev, intel: (prev.intel || 0) + (gameMode === 'operator' ? 2 : 1) }));
         
         setIsProcessing(false);
@@ -799,16 +810,16 @@ const STEAMBREACH = () => {
         let payout = Math.floor(baseValue * mult * intelCount);
         let darknetFee = 0;
 
-        // --- GAME MODE ECONOMICS ---
         if (gameMode === 'operator') {
-            darknetFee = Math.floor(payout * 0.15); // 15% escrow fee in operator mode
+            darknetFee = Math.floor(payout * 0.15);
             payout -= darknetFee;
         } else if (gameMode === 'arcade') {
-            payout = Math.floor(payout * 1.2); // 20% bonus in arcade
+            payout = Math.floor(payout * 1.2);
         }
         
         setConsumables(prev => ({ ...prev, intel: 0 }));
         setMoney(m => m + payout);
+        playSuccess();
         
         setIsProcessing(false);
         let out = `[$$$] TRANSACTION SECURED.\n[+] Sold ${intelCount}x Corporate Intel packages.`;
@@ -863,6 +874,7 @@ const STEAMBREACH = () => {
       pwnkit: async () => {
         if (!isInside) return '[-] Must be on a remote host.';
         if (privilege === 'root') return '[-] Already root.';
+        playRootShell();
         setPrivilege('root'); setTrace(t => Math.min(t + 15, 100));
         escalateBlueTeam(targetIP, 15); trackRoot();
         const node = world[targetIP];
@@ -883,7 +895,7 @@ const STEAMBREACH = () => {
         setIsChatting(true); setChatTarget(arg1); setChatHistory([]);
         return `[*] Connecting to ${emp.name} (${emp.role} at ${node.org.orgName})...\n[+] Channel open. Type your pretext, or 'exit' to close.\n[*] HINT: This person is ${emp.personality}`;
       },
-ssh: async () => {
+      ssh: async () => {
         if (isInside) return "[-] ssh: Disconnect from current session first.";
         if (!arg1 || !args[2]) return "[-] Usage: ssh <email@ip> <password>";
         
@@ -903,19 +915,18 @@ ssh: async () => {
         
         if (emp.password !== pass) {
           setHeat(h => Math.min(h + 5, 100));
+          playFailure();
           setIsProcessing(false);
           return `[-] Permission denied (publickey,password).\n[!] Failed login attempt logged by target IDS. Heat +5%`;
         }
         
+        playSuccess();
         setIsInside(true);
         setTargetIP(ipStr);
         setCurrentDir('/');
         
-        // Admins get root, regular employees get user level access
         const isAdmin = emp.role.toLowerCase().includes('admin') || emp.role.toLowerCase().includes('director') || emp.role.toLowerCase().includes('chief') || emp.role.toLowerCase().includes('dba');
         setPrivilege(isAdmin ? 'root' : 'user');
-        
-        // Using valid credentials bypasses the initial trace!
         setTrace(0);
         setIsProcessing(false);
         
@@ -943,20 +954,21 @@ ssh: async () => {
         setTerminal(prev => [...prev, { type: 'out', text: `[*] Accessing internal SMTP relay...\n[*] Spoofing sender as 'IT Support'...\n[*] Attaching ${payload}...\n[*] Sending email to ${emp.name}...`, isNew: false }]);
         await new Promise(r => setTimeout(r, 2500));
 
-        // IT and Admins are much harder to trick than regular employees
         const isIT = emp.role.toLowerCase().includes('admin') || emp.role.toLowerCase().includes('sec') || emp.role.toLowerCase().includes('dev');
         let phishChance = isIT ? 0.25 : 0.80; 
 
         if (Math.random() < phishChance) {
+           playSuccess();
            setBotnet(prev => {
              if (!prev.includes(targetIP)) return [...prev, targetIP];
              return prev;
            });
-           setPrivilege('root'); // Payload execution grants root
+           setPrivilege('root');
            setHeat(h => Math.min(h + 5, 100));
            setIsProcessing(false);
            return `[+] SOCIAL ENGINEERING SUCCESSFUL!\n[+] ${emp.name} (${emp.role}) opened the attachment.\n[+] ${payload} executed seamlessly in the background.\n[+] Privileges escalated to ROOT. Node added to botnet.`;
         } else {
+           playFailure();
            setHeat(h => Math.min(h + 20, 100));
            escalateBlueTeam(targetIP, 30);
            setIsProcessing(false);
@@ -986,6 +998,7 @@ ssh: async () => {
         if (Math.random() < 0.15) {
             const heatAdd = Math.floor(Math.random() * 15) + 5;
             setHeat(h => Math.min(h + heatAdd, 100));
+            playHeatSpike();
             encounterText = `\n[!!!] INTERCEPTED: Interpol sniffing traffic on border gateway. Heat +${heatAdd}%`;
         }
         
@@ -1105,6 +1118,7 @@ ssh: async () => {
         setTrace(t => Math.min(t + 10, 100));
 
         setWorld(prev => { const nw = { ...prev }; if (nw[targetIP]) nw[targetIP] = { ...nw[targetIP], commsGenerated: true }; return nw; });
+        playSuccess();
         setIsProcessing(false);
         return `[+] ettercap: MITM active. Sniffed ${node.org.employees?.length || 3} hosts.\n────────────────────────────────────\n${comms}\n────────────────────────────────────\n[!] Trace +10%. ARP anomalies may trigger IDS.`;
       },
@@ -1114,6 +1128,7 @@ ssh: async () => {
         if (privilege !== 'root') return "[-] Root required for C2 payload.";
         if (botnet.includes(targetIP)) return "[-] Beacon already active.";
         setBotnet(prev => [...prev, targetIP]);
+        playBeacon();
         escalateBlueTeam(targetIP, 20);
         return `[*] Deploying sliver-agent.bin...\n[+] C2 beacon established. Node added to botnet.\n[*] BOTNET UTILITIES NOW AVAILABLE:\n    hping3 <ip>     - SYN flood to disrupt target defenses\n    mimikatz <ip>   - Dump LSASS credentials from C2 node\n    stash <file>    - Stage exfil data through botnet node\n    hashcat -d      - Distribute cracking across botnet`;
       },
@@ -1125,6 +1140,7 @@ ssh: async () => {
         const maxSlots = getMaxProxySlots(inventory, director.modifiers);
         if (proxies.length >= maxSlots) return `[-] Proxy chain at capacity (${maxSlots}/${maxSlots} hops). Use 'disconnect <ip>' to free a slot.`;
         setProxies(prev => [...prev, targetIP]);
+        playSuccess();
         escalateBlueTeam(targetIP, 10);
         return `[*] Chisel reverse tunnel...\n[+] SOCKS5 proxy active. Hop ${proxies.length + 1}/${maxSlots}. Trace slowed. Pivoting enabled.`;
       },
@@ -1171,6 +1187,7 @@ ssh: async () => {
         });
 
         setHeat(h => Math.min(h + 5, 100));
+        playSuccess();
         setIsProcessing(false);
 
         let out = `[+] hping3 flood complete. ${effectiveness}% service disruption achieved on ${arg1}.\n[+] Target SOC overwhelmed — Blue Team alert level reduced.\n[!] Heat +5% (reflected traffic logged upstream).`;
@@ -1215,6 +1232,7 @@ ssh: async () => {
         const intelValue = Math.floor(Math.random() * 8000 + 3000);
         setMoney(m => m + intelValue);
         setLooted(prev => [...prev, mzKey]);
+        playSuccess();
         setIsProcessing(false);
 
         return `${mzData}\n\nmimikatz # exit\n[+] ${org?.employees?.length || 2} credential sets extracted from LSASS.\n[+] Plaintext passwords + NTLM hashes sold for $${intelValue.toLocaleString()}.`;
@@ -1239,6 +1257,7 @@ ssh: async () => {
         setLooted(prev => [...prev, fileKey, targetIP]);
         escalateBlueTeam(targetIP, 30);
         trackLoot(val);
+        playExfil();
 
         if (activeContract?.type === 'exfil' && activeContract.targetIP === targetIP) {
           const timeTaken = (Date.now() - activeContract.startTime) / 1000;
@@ -1258,7 +1277,6 @@ ssh: async () => {
         if (!isInside) return "[-] Must be on a remote host.";
         if (!arg1) return "[-] Usage: download <filename>";
         
-        // --- CONSUMABLES INTERCEPT LOGIC ---
         const isConsumable = ['decoy.bin', 'burner.ovpn', '0day_poc.sh', 'wallet.dat'].includes(arg1);
         if (isConsumable) {
           const currentDirFiles = fs[currentDir] || [];
@@ -1274,15 +1292,19 @@ ssh: async () => {
           if (arg1 === 'wallet.dat') {
             const amt = Math.floor(Math.random() * 8000 + 2000);
             setMoney(m => m + amt);
+            playSuccess();
             return `[+] SUCCESS: Decrypted slush fund wallet.\n[+] $${amt.toLocaleString()} XMR added to your account.`;
           } else if (arg1 === 'decoy.bin') {
             setConsumables(c => ({ ...c, decoy: c.decoy + 1 }));
+            playSuccess();
             return `[+] SUCCESS: Recovered Trace Decoy!\n[*] Type 'use decoy' during a hack to reduce Trace by 30%.`;
           } else if (arg1 === 'burner.ovpn') {
             setConsumables(c => ({ ...c, burner: c.burner + 1 }));
+            playSuccess();
             return `[+] SUCCESS: Recovered Burner VPN Cert!\n[*] Type 'use burner' to reduce global Heat by 25%.`;
           } else if (arg1 === '0day_poc.sh') {
             setConsumables(c => ({ ...c, zeroday: c.zeroday + 1 }));
+            playSuccess();
             return `[+] SUCCESS: Recovered Zero-Day Exploit!\n[*] Type 'use 0day' during a hack for instant root access.`;
           }
         }
@@ -1300,6 +1322,7 @@ ssh: async () => {
           nw.local.contents = { ...nw.local.contents, [`/home/operator/${arg1}`]: rawData };
           return nw;
         });
+        playSuccess();
         return `[+] ${arg1} saved to /home/operator/`;
       },
 
@@ -1315,12 +1338,10 @@ ssh: async () => {
         const hashKey = `john_${arg1}`;
         if (looted.includes(hashKey)) return "[-] john: Hashes already cracked in previous session.";
 
-        // Extract the origin IP so we know whose passwords we are cracking
         const ipMatch = rawData.match(/ORIGIN_IP:(\d+\.\d+\.\d+\.\d+)/);
         const sourceIP = ipMatch ? ipMatch[1] : null;
         const orgData = sourceIP ? world[sourceIP]?.org : null;
 
-        // HARDWARE UPGRADE: CPU makes John the Ripper 3x faster
         const hasCPU = inventory.includes('CPU');
         const crackTime = hasCPU ? 1200 : 3500;
         
@@ -1337,6 +1358,7 @@ ssh: async () => {
 
         setMoney(m => m + baseReward);
         setLooted(prev => [...prev, hashKey]);
+        playSuccess();
         setIsProcessing(false);
 
         let out = `[+] Session complete. 14 hashes cracked.`;
@@ -1373,10 +1395,8 @@ ssh: async () => {
         const nodeCount = distributed ? botnet.length : 0;
         const speedMult = distributed ? Math.max(1, nodeCount) : 1;
         
-        // HARDWARE UPGRADE: CPU makes hashcat twice as fast
         const baseCrackTime = Math.max(800, Math.floor(3000 / speedMult));
         let crackTime = inventory.includes('CPU') ? Math.floor(baseCrackTime * 0.5) : baseCrackTime;
-        // HARDWARE UPGRADE: GPU makes hashcat instant
         if (inventory.includes('GPU')) crackTime = 10;
         
         const baseReward = 35000;
@@ -1395,6 +1415,7 @@ ssh: async () => {
         const credCount = distributed ? 4201 + (nodeCount * 1200) : 4201;
         setMoney(m => m + totalReward);
         setLooted(prev => [...prev, hashKey]);
+        playSuccess();
         setIsProcessing(false);
 
         let out = `[+] CRACKING COMPLETE. ${credCount.toLocaleString()} credentials recovered.`;
@@ -1437,6 +1458,7 @@ ssh: async () => {
         setLooted(prev => [...prev, fileKey, targetIP]);
         escalateBlueTeam(targetIP, 15);
         trackLoot(val);
+        playExfil();
 
         if (activeContract?.type === 'exfil' && activeContract.targetIP === targetIP) {
           const timeTaken = (Date.now() - activeContract.startTime) / 1000;
@@ -1467,6 +1489,7 @@ ssh: async () => {
           if (nw[targetIP]?.blueTeam) { nw[targetIP] = { ...nw[targetIP], blueTeam: { ...nw[targetIP].blueTeam, alertLevel: Math.max(nw[targetIP].blueTeam.alertLevel - 30, 0) } }; }
           return nw;
         });
+        playDestroy();
         setIsProcessing(false);
         return `[+] Logs sanitized. HEAT -15%.`;
       },
@@ -1497,6 +1520,7 @@ ssh: async () => {
           setProxies(prev => prev.filter(ip => ip !== targetIP));
           setIsInside(false); setTargetIP(null); setCurrentDir('~'); setPrivilege('local');
           setWorld(prev => { const nw = { ...prev }; delete nw[targetIP]; return nw; });
+          playDestroy();
           setIsProcessing(false);
           return `[+] shred: /dev/sda — ${passes + 1} passes complete. Disk destroyed.\n[+] Destruction bounty: $${bounty.toLocaleString()}\n[!] Node permanently removed. Heat +25%.`;
         }
@@ -1521,6 +1545,7 @@ ssh: async () => {
           setProxies(prev => prev.filter(ip => ip !== targetIP));
           setIsInside(false); setTargetIP(null); setCurrentDir('~'); setPrivilege('local');
           setWorld(prev => { const nw = { ...prev }; delete nw[targetIP]; return nw; });
+          playDestroy();
           setIsProcessing(false);
           return `[+] ${depth.label}. Destruction bounty: $${bounty.toLocaleString()}\n[!] Node permanently removed. Heat +${depth.heatAdd}%.`;
         }
@@ -1540,6 +1565,7 @@ ssh: async () => {
         const destroyedName = world[targetIP]?.org?.orgName || targetIP;
         setIsInside(false); setTargetIP(null); setCurrentDir('~'); setPrivilege('local');
         setWorld(prev => { const nw = { ...prev }; delete nw[targetIP]; return nw; });
+        playDestroy();
         setIsProcessing(false);
         return `[+] DISK DESTROYED: ${destroyedName}\n[+] Destruction bounty: $${bounty.toLocaleString()}\n[!] Node permanently wiped from the grid. Heat +20%.`;
       },
@@ -1572,9 +1598,11 @@ ssh: async () => {
           
           if (paid) {
             setMoney(m => m + ransomAsk);
+            playSuccess();
             setIsProcessing(false);
             return `[+] ${strength} encryption complete. ${world[targetIP]?.org?.orgName || 'Target'} systems locked.\n[+] Ransom demand: $${ransomAsk.toLocaleString()}\n[+] VICTIM PAID. $${ransomAsk.toLocaleString()} received in XMR wallet.\n[!] Heat +30%. Law enforcement notified.`;
           } else {
+            playFailure();
             setIsProcessing(false);
             return `[+] ${strength} encryption complete. Systems locked.\n[+] Ransom demand: $${ransomAsk.toLocaleString()}\n[-] VICTIM REFUSED TO PAY. ${!isStrong ? 'AES-128 — they may attempt decryption.' : 'Data remains locked.'}\n[!] Heat +30%. No payout.`;
           }
@@ -1602,7 +1630,12 @@ ssh: async () => {
           setHeat(h => Math.min(h + 25, 100));
           escalateBlueTeam(targetIP, 35);
           
-          if (paid) { setMoney(m => m + ransomAsk); }
+          if (paid) {
+            setMoney(m => m + ransomAsk);
+            playSuccess();
+          } else {
+            playFailure();
+          }
           setIsProcessing(false);
           return paid
             ? `[+] ${strength} ransomware deployed. ${world[targetIP]?.org?.orgName || 'Target'} locked.\n[+] VICTIM PAID: $${ransomAsk.toLocaleString()}. Heat +25%.`
@@ -1621,7 +1654,12 @@ ssh: async () => {
         setHeat(h => Math.min(h + 20, 100));
         escalateBlueTeam(targetIP, 30);
         
-        if (paid) { setMoney(m => m + ransomAsk); }
+        if (paid) {
+          setMoney(m => m + ransomAsk);
+          playSuccess();
+        } else {
+          playFailure();
+        }
         setIsProcessing(false);
         const orgName = world[targetIP]?.org?.orgName || 'Target';
         return paid
@@ -1656,12 +1694,13 @@ ssh: async () => {
               setBotnet(prev => prev.filter(ip => ip !== bombIP));
               setProxies(prev => prev.filter(ip => ip !== bombIP));
               setWorld(prev => { const nw = { ...prev }; delete nw[bombIP]; return nw; });
+              playDestroy();
               setTerminal(prev => [...prev, { type: 'out', text: `\n[DETONATION] Logic bomb triggered on ${bombOrg} (${bombIP}).\n[+] shred executed. System destroyed. Bounty: $${bounty.toLocaleString()}. Heat +15%.`, isNew: true }]);
             } else {
               const ransomAsk = Math.floor(120000 * mult);
               const paid = Math.random() < 0.6;
               setHeat(h => Math.min(h + 15, 100));
-              if (paid) setMoney(m => m + ransomAsk);
+              if (paid) { setMoney(m => m + ransomAsk); playSuccess(); } else { playFailure(); }
               setTerminal(prev => [...prev, { type: 'out', text: `\n[DETONATION] Logic bomb triggered on ${bombOrg} (${bombIP}).\n[+] openssl ransomware deployed. ${paid ? `VICTIM PAID: $${ransomAsk.toLocaleString()}` : 'VICTIM REFUSED TO PAY.'}. Heat +15%.`, isNew: true }]);
             }
           }, delay * 60000);
@@ -1688,12 +1727,13 @@ ssh: async () => {
               setBotnet(prev => prev.filter(ip => ip !== bombIP));
               setProxies(prev => prev.filter(ip => ip !== bombIP));
               setWorld(prev => { const nw = { ...prev }; delete nw[bombIP]; return nw; });
+              playDestroy();
               setTerminal(prev => [...prev, { type: 'out', text: `\n[DETONATION] Cron job fired on ${bombOrg}. shred complete. Bounty: $${bounty.toLocaleString()}. Heat +12%.`, isNew: true }]);
             } else {
               const ransomAsk = Math.floor(120000 * mult);
               const paid = Math.random() < 0.6;
               setHeat(h => Math.min(h + 12, 100));
-              if (paid) setMoney(m => m + ransomAsk);
+              if (paid) { setMoney(m => m + ransomAsk); playSuccess(); } else { playFailure(); }
               setTerminal(prev => [...prev, { type: 'out', text: `\n[DETONATION] Cron job fired on ${bombOrg}. Ransomware deployed. ${paid ? `PAID: $${ransomAsk.toLocaleString()}` : 'REFUSED TO PAY.'}. Heat +12%.`, isNew: true }]);
             }
           }, delay * 60000);
@@ -1713,12 +1753,13 @@ ssh: async () => {
             setBotnet(prev => prev.filter(ip => ip !== bombIP));
             setProxies(prev => prev.filter(ip => ip !== bombIP));
             setWorld(prev => { const nw = { ...prev }; delete nw[bombIP]; return nw; });
+            playDestroy();
             setTerminal(prev => [...prev, { type: 'out', text: `\n[DETONATION] Logic bomb on ${bombOrg} — DESTROYED. Bounty: $${bounty.toLocaleString()}.`, isNew: true }]);
           } else {
             const ransomAsk = 120000;
             const paid = Math.random() < 0.6;
             setHeat(h => Math.min(h + 10, 100));
-            if (paid) setMoney(m => m + ransomAsk);
+            if (paid) { setMoney(m => m + ransomAsk); playSuccess(); } else { playFailure(); }
             setTerminal(prev => [...prev, { type: 'out', text: `\n[DETONATION] Logic bomb on ${bombOrg} — Ransomware. ${paid ? `PAID: $${ransomAsk.toLocaleString()}` : 'REFUSED.'}`, isNew: true }]);
           }
         }, delay * 60000);
@@ -1765,6 +1806,7 @@ ssh: async () => {
           
           setHeat(h => Math.min(h + 8, 100));
           escalateBlueTeam(targetIP, 20);
+          playBeacon();
           setIsProcessing(false);
           return `[+] Payload deployed. Meterpreter callbacks received:\n${newNodes.map((n, i) => `    [+] Session ${i + 1}: ${n.ip} (${n.data.org?.orgName || 'Unknown'})`).join('\n')}\n[+] ${infectCount} new botnet node${infectCount > 1 ? 's' : ''} acquired. Heat +8%.`;
         }
@@ -1791,6 +1833,7 @@ ssh: async () => {
           const heatAdd = payloadType === 'reverse' ? 5 : payloadType === 'miner' ? 8 : 15;
           setHeat(h => Math.min(h + heatAdd, 100));
           escalateBlueTeam(targetIP, 15);
+          playBeacon();
           setIsProcessing(false);
 
           let result = `[+] ${payloadType.toUpperCase()} payload propagated to ${infectCount} host${infectCount > 1 ? 's' : ''}:\n${newNodes.map(n => `    ${n.ip} — ${n.data.org?.orgName || 'Unknown'}`).join('\n')}`;
@@ -1814,6 +1857,7 @@ ssh: async () => {
         }
 
         setHeat(h => Math.min(h + 5, 100));
+        playBeacon();
         setIsProcessing(false);
         return `[+] PAYLOAD DEPLOYED — ${infectCount} new node${infectCount > 1 ? 's' : ''} infected:\n${newNodes.map(n => `    ${n.ip} — ${n.data.org?.orgName || 'Unknown'}`).join('\n')}\n[+] All nodes added to botnet. Heat +5%.`;
       },
@@ -1843,6 +1887,7 @@ ssh: async () => {
           }
 
           setHeat(h => Math.min(h + 35, 100));
+          playHeatSpike();
           escalateBlueTeam(targetIP, 50);
           setIsProcessing(false);
 
@@ -1876,6 +1921,7 @@ ssh: async () => {
 
           const heatAdd = scope === 'subnet' ? 35 : 20;
           setHeat(h => Math.min(h + heatAdd, 100));
+          if (heatAdd >= 30) playHeatSpike();
           escalateBlueTeam(targetIP, scope === 'subnet' ? 50 : 30);
           setIsProcessing(false);
           return `[+] EternalBlue propagation complete. ${infectCount} hosts compromised:\n${newNodes.map(n => `    ${n.ip} — ${n.data.org?.orgName}`).join('\n')}\n[!] Heat +${heatAdd}%. ${scope === 'subnet' ? 'Every alarm on the network just fired.' : 'Multiple IDS alerts triggered.'}`;
@@ -1895,6 +1941,7 @@ ssh: async () => {
         }
 
         setHeat(h => Math.min(h + 30, 100));
+        playHeatSpike();
         setIsProcessing(false);
         return `[+] ETERNALBLUE MASS EXPLOITATION — ${infectCount} systems compromised:\n${newNodes.map(n => `    ${n.ip} — ${n.data.org?.orgName}`).join('\n')}\n[+] All added to botnet.\n[!!!] Heat +30%. This is the loudest thing you can do on a network.`;
       },
@@ -1923,6 +1970,7 @@ ssh: async () => {
             if (nw[targetIP]) nw[targetIP] = { ...nw[targetIP], blueTeam: { ...nw[targetIP].blueTeam, alertLevel: 0, activeHunting: false } };
             return nw;
           });
+          playSuccess();
           setIsProcessing(false);
           return `# lsmod | grep reptile\n# (no output — rootkit is hidden)\n\n[+] Reptile kernel rootkit installed.\n[+] C2 beacon is now invisible to host-based detection.\n[+] Blue Team alert level reset to 0. Node is permanently stealth.`;
         }
@@ -1948,6 +1996,7 @@ ssh: async () => {
             if (nw[targetIP]) nw[targetIP] = { ...nw[targetIP], blueTeam: { ...nw[targetIP].blueTeam, alertLevel: 0, activeHunting: false } };
             return nw;
           });
+          playSuccess();
           setIsProcessing(false);
           return `[+] Reptile rootkit installed (${arg1} method, stealth: ${method.stealth}).\n[+] Node is now invisible to Blue Team. Alert level zeroed.`;
         }
@@ -1962,6 +2011,7 @@ ssh: async () => {
           if (nw[targetIP]) nw[targetIP] = { ...nw[targetIP], blueTeam: { ...nw[targetIP].blueTeam, alertLevel: 0, activeHunting: false } };
           return nw;
         });
+        playSuccess();
         setIsProcessing(false);
         return `[+] REPTILE ROOTKIT INSTALLED.\n[+] Your presence on ${world[targetIP]?.org?.orgName || targetIP} is now invisible.\n[+] Blue Team can no longer detect or remove your C2 beacon.`;
       },
@@ -1993,12 +2043,10 @@ ssh: async () => {
           await new Promise(r => setTimeout(r, 1500));
 
           setLooted(prev => [...prev, xmrigKey]);
-          
-          // HARDWARE UPGRADE: Liquid Cooling halves heat output
           let rawHeat = maxCpu > 80 ? 8 : maxCpu > 50 ? 4 : 2;
           const heatAdd = inventory.includes('Cooling') ? Math.ceil(rawHeat / 2) : rawHeat;
-          
           setHeat(h => Math.min(h + heatAdd, 100));
+          playSuccess();
           setIsProcessing(false);
           return `[+] xmrig running. Hashrate: ${(threads * 0.6).toFixed(1)} kH/s\n[+] Estimated income: +$${incomeBonus.toLocaleString()}/hr on this node.\n[!] Heat +${heatAdd}% (CPU ${maxCpu}% — ${maxCpu > 80 ? 'SOC will notice the spike' : maxCpu > 50 ? 'moderate detection risk' : 'low profile'}).`;
         }
@@ -2020,11 +2068,9 @@ ssh: async () => {
 
           const hourlyIncome = Math.floor(intensity.income * mult);
           setLooted(prev => [...prev, xmrigKey]);
-          
-          // HARDWARE UPGRADE
           const heatAdd = inventory.includes('Cooling') ? Math.ceil(intensity.heatAdd / 2) : intensity.heatAdd;
-          
           setHeat(h => Math.min(h + heatAdd, 100));
+          playSuccess();
           setIsProcessing(false);
           return `[+] XMRig active — ${intensity.cpu}% CPU, +$${hourlyIncome.toLocaleString()}/hr.\n[!] ${intensity.risk}. Heat +${heatAdd}%.`;
         }
@@ -2035,11 +2081,9 @@ ssh: async () => {
 
         const hourlyIncome = Math.floor(500 * mult);
         setLooted(prev => [...prev, xmrigKey]);
-        
-        // HARDWARE UPGRADE
         const heatAdd = inventory.includes('Cooling') ? 2 : 3;
-        
         setHeat(h => Math.min(h + heatAdd, 100));
+        playSuccess();
         setIsProcessing(false);
         return `[+] XMRIG DEPLOYED. Mining Monero at +$${hourlyIncome.toLocaleString()}/hr.\n[!] Heat +${heatAdd}%.`;
       },
@@ -2066,6 +2110,7 @@ ssh: async () => {
             if (privilege === 'root') return `[-] You already have root access on this node.`;
             setConsumables(c => ({ ...c, zeroday: c.zeroday - 1 }));
             setPrivilege('root');
+            playRootShell();
             return `[*] Executing unknown Zero-Day payload...\n[+] Buffer overflow successful.\n[+] Root privileges granted. Bypassed all logging.`;
         }
         return `[-] Unknown consumable item: ${arg1}`;
@@ -2085,7 +2130,6 @@ ssh: async () => {
       cat: async () => {
         const targetFile = resolvePath(arg1, currentDir);
         
-        // --- CONSUMABLES INTERCEPT LOGIC ---
         const isConsumable = ['decoy.bin', 'burner.ovpn', '0day_poc.sh', 'wallet.dat'].includes(arg1);
         if (isConsumable) {
           const currentDirFiles = fs[currentDir] || [];
@@ -2101,15 +2145,19 @@ ssh: async () => {
           if (arg1 === 'wallet.dat') {
             const amt = Math.floor(Math.random() * 8000 + 2000);
             setMoney(m => m + amt);
+            playSuccess();
             return `[+] SUCCESS: Decrypted slush fund wallet.\n[+] $${amt.toLocaleString()} XMR added to your account.`;
           } else if (arg1 === 'decoy.bin') {
             setConsumables(c => ({ ...c, decoy: c.decoy + 1 }));
+            playSuccess();
             return `[+] SUCCESS: Recovered Trace Decoy!\n[*] Type 'use decoy' during a hack to reduce Trace by 30%.`;
           } else if (arg1 === 'burner.ovpn') {
             setConsumables(c => ({ ...c, burner: c.burner + 1 }));
+            playSuccess();
             return `[+] SUCCESS: Recovered Burner VPN Cert!\n[*] Type 'use burner' to reduce global Heat by 25%.`;
           } else if (arg1 === '0day_poc.sh') {
             setConsumables(c => ({ ...c, zeroday: c.zeroday + 1 }));
+            playSuccess();
             return `[+] SUCCESS: Recovered Zero-Day Exploit!\n[*] Type 'use 0day' during a hack for instant root access.`;
           }
         }
@@ -2227,6 +2275,7 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
       if (cmd !== 'cat') { setTerminal(prev => [...prev, { type: 'out', text: output, isNew: true }]); }
     } else {
       trackCommand(cmd, false);
+      playFailure();
       if (isInside && looted.length >= 3) {
         setHeat(h => Math.min(h + 5, 100));
         setTerminal(prev => [...prev, { type: 'out', text: `bash: ${cmd}: command not found\n[!] IDS logged invalid command. Heat +5%`, isNew: true }]);
@@ -2550,13 +2599,12 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
 
       {showHelpMenu && <HelpPanel onClose={() => setShowHelpMenu(false)} devMode={devMode} />}
 
-      {/* DASHBOARD ROW: MAP + PC RIG */}
       <div style={{ display: 'flex', gap: '8px', margin: '6px 0' }}>
         <NetworkMap
           world={world} botnet={botnet} proxies={proxies} looted={looted} targetIP={targetIP} trace={trace} inventory={inventory}
           selectNodeFromMap={selectNodeFromMap} expanded={mapExpanded} toggleExpand={() => setMapExpanded(e => !e)} currentRegion={currentRegion}
-          consumables={consumables} // <- ADD THIS
-          money={money} // <- ADD THIS
+          consumables={consumables}
+          money={money}
         />
         <RigDisplay 
           inventory={inventory} heat={heat} isProcessing={isProcessing} expanded={mapExpanded} toggleExpand={() => setMapExpanded(e => !e)} 
