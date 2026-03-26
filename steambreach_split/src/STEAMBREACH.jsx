@@ -31,19 +31,7 @@ import MarketBoard from './components/MarketBoard';
 import DarknetShop from './components/DarknetShop';
 import SoundManager, { setSoundMap } from './components/SoundManager';
 
-// Add state:
-const [soundMap, setSoundMapState] = useState({});
 
-// Pass to soundEngine whenever it changes:
-useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
-
-// Add screen:
-if (screen === 'sounds') return (
-  <SoundManager
-    returnToGame={() => setScreen('game')}
-    onSoundMapChange={setSoundMapState}
-  />
-);
 
 const STEAMBREACH = () => {
   const [apiKey, setApiKey] = useState(localStorage.getItem('breach_api_key') || '');
@@ -100,6 +88,20 @@ const STEAMBREACH = () => {
 
   const terminalEndRef = useRef(null);
   const inputRef = useRef(null);
+        
+         // Add state:
+const [soundMap, setSoundMapState] = useState({});
+
+// Pass to soundEngine whenever it changes:
+useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
+
+// Add screen:
+if (screen === 'sounds') return (
+  <SoundManager
+    returnToGame={() => setScreen('game')}
+    onSoundMapChange={setSoundMapState}
+  />
+);
 
   useEffect(() => {
     if (terminalEndRef.current) terminalEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
