@@ -72,7 +72,9 @@ const COMMAND_REGISTRY = [
   { cmd: 'use <item>', desc: 'Consume a hidden item (decoy, burner, 0day)', category: 'ECONOMY & ITEMS' },
   { cmd: 'contracts', desc: 'View AI fixer contracts board', category: 'ECONOMY & ITEMS' },
   { cmd: 'market', desc: 'Open Black Market Trading UI', category: 'ECONOMY & ITEMS' },
-  { cmd: 'shop', desc: 'Access darknet software & hardware market', category: 'ECONOMY & ITEMS' },
+  { cmd: 'shop', desc: 'Access darknet software market', category: 'ECONOMY & ITEMS' },
+  { cmd: 'hardware', desc: 'Open hardware marketplace — buy/sell/build your rig', category: 'ECONOMY & ITEMS' },
+  { cmd: 'rig', desc: 'Alias for hardware marketplace', category: 'ECONOMY & ITEMS' },
   
   // --- SYSTEM & NAVIGATION ---
   { cmd: 'travel <region>', desc: 'Route gateway to new global subnet', category: 'SYSTEM & NAV' },
