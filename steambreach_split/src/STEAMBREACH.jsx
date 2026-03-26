@@ -2393,14 +2393,22 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
 
           {menuMode === 'main' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '300px', margin: '0 auto' }}>
-          <button 
+         <button 
           onClick={() => setScreen('soundmanager')} 
+          onMouseEnter={(e) => {
+            e.target.style.background = `${COLORS.primary}20`;
+            e.target.style.borderColor = COLORS.primary;
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.background = COLORS.bgPanel;
+            e.target.style.borderColor = COLORS.border;
+          }}
           style={{
             background: COLORS.bgPanel, 
             color: COLORS.primary, 
             border: `1px solid ${COLORS.border}`,
             padding: '12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px', 
-            borderRadius: '3px', letterSpacing: '2px', transition: 'background 0.15s'
+            borderRadius: '3px', letterSpacing: '2px', transition: 'all 0.15s'
           }}>
           AUDIO MANAGER
         </button>
