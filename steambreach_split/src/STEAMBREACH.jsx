@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import SoundManager from './components/SoundManager';
-import * as soundEngine from './soundEngine';
+import * as soundEngine from './audio/soundEngine';
 import {
   setSoundMap,
   playSuccess,
