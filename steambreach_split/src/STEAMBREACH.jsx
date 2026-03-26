@@ -89,6 +89,21 @@ const STEAMBREACH = () => {
     if (inputRef.current && !isProcessing && (screen === 'game' || screen === 'login') && !showHelpMenu) inputRef.current.focus();
   }, [terminal, mapExpanded, screen, isProcessing, showHelpMenu]);
 
+  // PERSISTENT FOCUS KEEPER — grabs focus back after any steal
+  useEffect(() => {
+    if (screen !== 'game') return;
+    const focusKeeper = setInterval(() => {
+      if (inputRef.current && !isProcessing && !showHelpMenu && document.activeElement !== inputRef.current) {
+        // Don't steal focus from shop/market/contract overlays
+        const activeTag = document.activeElement?.tagName;
+        if (activeTag !== 'BUTTON' && activeTag !== 'INPUT') {
+          inputRef.current.focus();
+        }
+      }
+    }, 300);
+    return () => clearInterval(focusKeeper);
+  }, [screen, isProcessing, showHelpMenu]);
+
   const activeState = useRef({ heat, botnet, proxies, walletFrozen });
   useEffect(() => { activeState.current = { heat, botnet, proxies, walletFrozen }; }, [heat, botnet, proxies, walletFrozen]);
 
@@ -131,7 +146,7 @@ const STEAMBREACH = () => {
         if (e.key === 'ArrowDown') setMenuIndex(prev => Math.min(prev + 1, maxIdx));
         if (e.key === 'ArrowUp') setMenuIndex(prev => Math.max(prev - 1, 0));
         if (e.key === 'Enter') {
-          if (menuIndex === 0) { setMenuMode('newgame'); setMenuIndex(0); }
+          if (menuIndex === 0) { setMenuMode('newgame'); setMenuIndex(0); setOperator(''); }
           else if (menuIndex === 1) { setMenuMode('load'); setMenuIndex(0); }
           else if (menuIndex === 2) { setMenuMode('delete'); setMenuIndex(0); }
         }
@@ -2303,7 +2318,7 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '300px', margin: '0 auto' }}>
               <button 
                 onMouseEnter={() => setMenuIndex(0)}
-                onClick={() => { setMenuMode('newgame'); setMenuIndex(0); }} 
+                onClick={() => { setMenuMode('newgame'); setMenuIndex(0); setOperator(''); }} 
                 style={{
                   background: menuIndex === 0 ? `${COLORS.primary}20` : COLORS.bgPanel, color: COLORS.primary, border: `1px solid ${menuIndex === 0 ? COLORS.primary : COLORS.border}`,
                   padding: '12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px', borderRadius: '3px', letterSpacing: '2px', transition: 'background 0.15s',
@@ -2365,8 +2380,23 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
                 ))}
               </div>
 
-              <div style={{ marginTop: '16px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                <div style={{color: COLORS.textDim, fontSize: '10px', marginTop: '10px'}}>[UP/DOWN] CHANGE MODE | [ENTER] START | [ESC] CANCEL</div>
+              <div style={{ marginTop: '16px', display: 'flex', gap: '8px', justifyContent: 'center', flexDirection: 'column', alignItems: 'center' }}>
+                <button 
+                  onClick={() => operator.length > 0 && startNewGame(operator, gameMode)}
+                  disabled={operator.length === 0}
+                  style={{
+                    background: operator.length > 0 ? COLORS.primary : COLORS.bgDark,
+                    color: operator.length > 0 ? COLORS.bgDark : COLORS.textDim,
+                    border: `1px solid ${operator.length > 0 ? COLORS.primary : COLORS.border}`,
+                    padding: '10px 40px', cursor: operator.length > 0 ? 'pointer' : 'default',
+                    fontFamily: 'inherit', fontSize: '13px', fontWeight: 'bold',
+                    borderRadius: '3px', letterSpacing: '2px',
+                    opacity: operator.length > 0 ? 1 : 0.4,
+                    transition: 'all 0.15s',
+                  }}>
+                  START GAME
+                </button>
+                <div style={{color: COLORS.textDim, fontSize: '10px', marginTop: '4px'}}>[UP/DOWN] CHANGE MODE | [ENTER] START | [ESC] CANCEL</div>
               </div>
             </div>
           )}
@@ -2485,7 +2515,7 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
   );
 
   return (
-    <div style={{
+    <div onClick={() => { if (inputRef.current && !isProcessing && screen === 'game') inputRef.current.focus(); }} style={{
       background: COLORS.bg, color: COLORS.text, position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
       display: 'flex', flexDirection: 'column', padding: '12px 16px', fontFamily: "'Consolas', 'Fira Code', 'JetBrains Mono', monospace",
       overflow: 'hidden', boxSizing: 'border-box', fontSize: '13px'
@@ -2531,7 +2561,7 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
         />
       </div>
 
-      <div style={{ flexGrow: 1, overflowY: 'auto', margin: '4px 0', paddingRight: '8px', scrollbarWidth: 'thin', scrollbarColor: `${COLORS.border} transparent` }}>
+      <div onClick={() => { if (inputRef.current && !isProcessing) inputRef.current.focus(); }} style={{ flexGrow: 1, overflowY: 'auto', margin: '4px 0', paddingRight: '8px', scrollbarWidth: 'thin', scrollbarColor: `${COLORS.border} transparent`, cursor: 'text' }}>
         {terminal.map((t, i) => {
           let inColor = isChatting ? COLORS.chat : (t.remote ? COLORS.primary : COLORS.textDim);
           return (
