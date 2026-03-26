@@ -2424,12 +2424,24 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
           {menuIndex === 0 ? '▶ ' : '  '}NEW GAME
         </button>
               
-              <button 
-                onMouseEnter={() => setMenuIndex(1)}
-                onClick={() => { setMenuMode('load'); setMenuIndex(0); }} disabled={saves.length === 0} style={{
-                background: menuIndex === 1 ? `${COLORS.primary}20` : COLORS.bgPanel, color: saves.length > 0 ? COLORS.text : COLORS.textDim, border: `1px solid ${menuIndex === 1 ? COLORS.primary : COLORS.border}`,
-                padding: '12px', cursor: saves.length > 0 ? 'pointer' : 'default', fontFamily: 'inherit', fontSize: '13px', borderRadius: '3px', letterSpacing: '2px', opacity: saves.length > 0 ? 1 : 0.4,
-              }}>{menuIndex === 1 ? '▸ ' : '  '}LOAD GAME {saves.length > 0 && `(${saves.length})`}</button>
+             <button 
+          onMouseEnter={() => setMenuIndex(1)}
+          onClick={() => { setMenuMode('load'); setMenuIndex(0); }} 
+          disabled={saves.length === 0} 
+          style={{
+            background: menuIndex === 1 ? `${COLORS.primary}20` : COLORS.bgPanel, 
+            color: saves.length > 0 ? COLORS.text : COLORS.textDim, 
+            border: `1px solid ${menuIndex === 1 ? COLORS.primary : COLORS.border}`,
+            padding: '12px', 
+            cursor: saves.length > 0 ? 'pointer' : 'default', 
+            fontFamily: 'inherit', 
+            fontSize: '13px', 
+            borderRadius: '3px', 
+            letterSpacing: '2px', 
+            opacity: saves.length > 0 ? 1 : 0.4,
+          }}>
+          {menuIndex === 1 ? '▶ ' : '  '}LOAD GAME {saves.length > 0 && `(${saves.length})`}
+        </button>
               
               <button 
                 onMouseEnter={() => setMenuIndex(2)}
