@@ -40,7 +40,7 @@ import Header from './components/Header';
 import ContractBoard from './components/ContractBoard';
 import MarketBoard from './components/MarketBoard';
 import DarknetShop from './components/DarknetShop';
-import SoundManager, { setSoundMap } from './components/SoundManager';
+
 
 
 
