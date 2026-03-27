@@ -1213,6 +1213,10 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
           if (!proxies.includes(targetIP)) return `[-] Nmap failed. Establish a SOCKS5 tunnel first with 'chisel'.`;
           out += `\n[*] Routing through ${targetIP} proxy...\n[*] Scanning internal subnet...\n`;
           const newNode = generateNewTarget('elite', targetIP);
+        if (Math.random() < 0.20) {
+          newNode.data.files['/'].push('intercept.log');
+          newNode.data.contents['/intercept.log'] = '[STORY_PENDING]';
+        }
           setWorld(prev => ({ ...prev, [newNode.ip]: newNode.data }));
           out += `\n[+] HIDDEN NODE: ${newNode.data.port}/tcp on ${newNode.ip}\n[+] ORG: ${newNode.data.org.orgName}`;
           return out;
