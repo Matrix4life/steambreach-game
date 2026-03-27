@@ -2536,7 +2536,19 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
           }}>
           {menuIndex === -1 ? '▶ ' : '  '}AUDIO MANAGER
         </button>
-
+<button 
+       onMouseEnter={() => setMenuIndex(-2)}
+       onClick={() => setScreen('aisettings')} 
+       style={{
+         background: menuIndex === -2 ? `${COLORS.primary}20` : COLORS.bgPanel, 
+         color: COLORS.primary, 
+         border: `1px solid ${menuIndex === -2 ? COLORS.primary : COLORS.border}`,
+         padding: '12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px', 
+         borderRadius: '3px', letterSpacing: '2px', transition: 'all 0.15s'
+       }}>
+       {menuIndex === -2 ? '▶ ' : '  '}AI DIRECTOR SETTINGS
+     </button>
+              
               <button 
                 onMouseEnter={() => setMenuIndex(0)}
                 onClick={() => { setMenuMode('newgame'); setMenuIndex(0); setOperator(''); }} 
@@ -2782,6 +2794,9 @@ if (screen === 'soundmanager') {
       />
     );
   }
+  if (screen === 'aisettings') {
+  return <AiSettings returnToGame={() => setScreen('')} />;
+}
   
   return (
     <div onMouseDown={(e) => { if (e.target === e.currentTarget && inputRef.current && !isProcessing && screen === 'game') inputRef.current.focus(); }} style={{
