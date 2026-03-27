@@ -34,6 +34,7 @@ import {
   getRewardMult,
   getMaxProxySlots,
   generateDirectorNarrative,
+  generateStoryEvent,
 } from './ai/director';
 import { generateNewTarget, DEFAULT_WORLD } from './world/generation';
 import { SyntaxText, Typewriter, HelpPanel } from './components/TerminalBits';
@@ -54,6 +55,7 @@ const STEAMBREACH = () => {
  const [operator, setOperator] = useState('');
   const [screen, setScreen] = useState('intro');
   const apiKey = null;
+  const [activeStory, setActiveStory] = useState(null);
   const [gameMode, setGameMode] = useState('arcade');
   const [terminal, setTerminal] = useState([]);
   const [input, setInput] = useState('');
@@ -2324,6 +2326,32 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
           if (privilege !== 'root') return `cat: ${arg1}: Permission denied. Root required.`;
           rawData = rawData.replace('[LOCKED] ', '');
         }
+        
+        if (rawData === '[STORY_PENDING]') {
+          setIsProcessing(true);
+          setTerminal(prev => [...prev, { type: 'out', text: `[*] Decrypting high-security log file...`, isNew: false }]);
+          
+          // Generate the story based on the player's current alignment
+          const storyData = await generateStoryEvent(alignment || 0);
+          
+          if (!storyData) {
+            setIsProcessing(false);
+            return `[-] Decryption failed. File corrupted.`;
+          }
+
+          // Save it to state so the player can decide
+          setActiveStory({ ...storyData, ip: targetIP });
+
+          // Update the file so it doesn't generate twice
+          setWorld(prev => {
+            const nw = { ...prev };
+            nw[targetIP].contents[targetFile] = storyData.story;
+            return nw;
+          });
+
+          setIsProcessing(false);
+          return `\n[DECRYPTED MESSAGE]\n"${storyData.story}"\n\n[SYSTEM] MORAL CROSSROADS DETECTED.\n[1] PARAGON : ${storyData.good_action} (Reward: $${storyData.good_payout})\n[2] SYNDICATE : ${storyData.evil_action} (Reward: $${storyData.evil_payout})\n\nType 'resolve 1' or 'resolve 2' to make your choice.`;
+        }
 
         if (rawData.includes('[PENDING_GENERATION]') || rawData.includes('[LORE_PENDING]')) {
           setIsProcessing(true);
@@ -2359,7 +2387,29 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
         setTerminal(prev => [...prev, { type: 'out', text: rawData, isNew: true }]);
         return null;
       },
+      
+resolve: async () => {
+        if (!activeStory) return `[-] No active scenario to resolve.`;
+        if (!isInside || targetIP !== activeStory.ip) return `[-] Must be connected to ${activeStory.ip} to resolve this scenario.`;
+        if (arg1 !== '1' && arg1 !== '2') return `[-] Usage: resolve 1 (Good) or resolve 2 (Evil)`;
 
+        const isGood = arg1 === '1';
+        const payout = isGood ? activeStory.good_payout : activeStory.evil_payout;
+        const alignShift = isGood ? 20 : -20;
+        
+        setMoney(m => m + payout);
+        // Ensure you have a setAlignment state at the top of your file!
+        setAlignment(a => Math.max(-100, Math.min(100, a + alignShift))); 
+        setActiveStory(null);
+        playSuccess();
+        
+        let out = `[*] Executing ${isGood ? 'PARAGON' : 'SYNDICATE'} protocol...\n`;
+        out += `[+] Scenario Resolved: ${isGood ? activeStory.good_action : activeStory.evil_action}.\n`;
+        out += `[+] Payment routed: $${payout.toLocaleString()} XMR.\n`;
+        out += `[!] Alignment shifted by ${alignShift}.`;
+        return out;
+      },
+      
       exit: async () => {
         setIsInside(false); setTargetIP(null); setCurrentDir('~'); setPrivilege('local');
         return '[*] Session closed.';
