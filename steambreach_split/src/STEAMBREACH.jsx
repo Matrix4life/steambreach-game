@@ -41,9 +41,8 @@ import Header from './components/Header';
 import ContractBoard from './components/ContractBoard';
 import MarketBoard from './components/MarketBoard';
 import DarknetShop from './components/DarknetShop';
-import HardwareMarket from './components/HardwareMarket';
 import UnifiedMarket from './components/UnifiedMarket';
-import { PARTS_BY_ID, generateMarketStock, getSellPrice, getRigEffects, generateUnifiedMarket, generateBTCPrice, formatBTC } from './constants/rigParts';
+import { PARTS_BY_ID, getSellPrice, getRigEffects, generateUnifiedMarket, generateBTCPrice, formatBTC } from './constants/rigParts';
 
 
 
