@@ -23,6 +23,8 @@ export async function generateDirectorText(prompt, systemInstruction = '', confi
       return await fetchOpenAI(prompt, systemInstruction, apiKey, model);
     } else if (provider === 'anthropic') {
       return await fetchAnthropic(prompt, systemInstruction, apiKey, model);
+      } else if (provider === 'groq') {
+      return await fetchGroq(prompt, systemInstruction, apiKey, model);
     } else if (provider === 'ollama') {
       return await fetchOllama(prompt, systemInstruction, model, baseUrl);
     } else {
