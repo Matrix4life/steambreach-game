@@ -62,7 +62,7 @@ const STEAMBREACH = () => {
   const [devMode, setDevMode] = useState(false);
   const [showHelpMenu, setShowHelpMenu] = useState(false);
 
-  const [money, setMoney] = useState(0);F
+  const [money, setMoney] = useState(0);
   const [reputation, setReputation] = useState(0);
   const [heat, setHeat] = useState(0);
   const [botnet, setBotnet] = useState([]);
