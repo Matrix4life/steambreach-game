@@ -50,9 +50,8 @@ import { PARTS_BY_ID, getSellPrice, getRigEffects, generateUnifiedMarket, genera
 
 
 const STEAMBREACH = () => {
-  const [apiKey, setApiKey] = useState(localStorage.getItem('breach_api_key') || '');
-  const [operator, setOperator] = useState('');
-  const [screen, setScreen] = useState(localStorage.getItem('breach_api_key') ? 'intro' : 'login');
+ const [operator, setOperator] = useState('');
+  const [screen, setScreen] = useState('intro');
   const [gameMode, setGameMode] = useState('arcade');
   const [terminal, setTerminal] = useState([]);
   const [input, setInput] = useState('');
@@ -2442,7 +2441,7 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
   // SCREENS
   // ==========================================
   
-  if (screen === 'login') {
+ if (screen === 'login') {
     return (
       <div style={{
         background: COLORS.bg, color: COLORS.text, position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
