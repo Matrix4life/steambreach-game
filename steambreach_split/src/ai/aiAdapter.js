@@ -37,15 +37,35 @@ export async function generateDirectorText(prompt, systemInstruction = '', confi
 // --- PROVIDER FETCH IMPLEMENTATIONS ---
 
 async function fetchGemini(prompt, system, key, model) {
+  // 1. Catch missing keys before we even try to fetch
+  if (!key || key.trim() === '') {
+    return "ERROR: NO API KEY PROVIDED. CHECK AI SETTINGS.";
+  }
+
+  // 2. Build the payload carefully
+  const payload = {
+    contents: [{ parts: [{ text: prompt || " " }] }]
+  };
+
+  // 3. Only attach system instructions if they actually exist! 
+  // (Sending an empty system instruction causes the 400 error)
+  if (system && system.trim() !== '') {
+    payload.systemInstruction = { parts: [{ text: system }] };
+  }
+
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-1.5-flash'}:generateContent?key=${key}`;
+  
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: system }] },
-      contents: [{ parts: [{ text: prompt }] }]
-    })
+    body: JSON.stringify(payload)
   });
+
+  if (!res.ok) {
+    console.error(`Gemini API Error: ${res.status} ${res.statusText}`);
+    return `ERROR: DIRECTOR OFFLINE (HTTP ${res.status})`;
+  }
+
   const data = await res.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text || "NO RESPONSE";
 }
