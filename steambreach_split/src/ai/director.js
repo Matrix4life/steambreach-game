@@ -124,4 +124,36 @@ export {
   getMaxProxySlots,
   pickWeightedTier,
   generateDirectorNarrative,
+  generateStoryEvent
+};
+import { generateDirectorText } from './aiAdapter';
+
+// ... (keep all your existing director code above)
+
+export const generateStoryEvent = async (currentAlignment) => {
+  const system = `You are the Story Director for STEAMBREACH, a gritty, M-rated cyberpunk hacking simulator.
+  The player just intercepted a highly sensitive communication on a random server.
+  Generate a short, dark, high-stakes scenario (e.g., cartel hit, corporate assassination, illegal organ harvesting, whistleblowing). 
+  Return ONLY valid raw JSON in this exact format. No markdown, no conversational text:
+  {
+    "story": "The intercepted raw message text (2-3 sentences max).",
+    "good_action": "Short description of how to save the victim or do the right thing",
+    "evil_action": "Short description of how to exploit the situation for maximum profit or do the wrong thing",
+    "good_payout": 5000,
+    "evil_payout": 25000
+  }`;
+
+  const prompt = `Generate a new darknet interception. Player's current moral alignment is ${currentAlignment} (-100 is evil, 100 is good).`;
+
+  try {
+    let text = await generateDirectorText(prompt, system);
+    text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+  } catch (e) {
+    console.error("Story generation failed", e);
+  }
+  return null;
 };
