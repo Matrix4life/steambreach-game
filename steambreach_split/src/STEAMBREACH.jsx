@@ -2329,16 +2329,13 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
           
           let aiText = "";
           try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                systemInstruction: { parts: [{ text: `You are a backend file generator for a hacking simulator called STEAMBREACH. Generate realistic file contents for the organization "${world[targetIP]?.org?.orgName || 'Unknown'}". Write MAX 8 lines. Match the file extension exactly. Hide useful intel naturally. Never use markdown.` }] },
-                contents: [{ role: 'user', parts: [{ text: `Generate realistic contents for: ${arg1}\nContext: ${contextHint}` }] }]
-              })
-            });
-            const data = await response.json();
-            aiText = data.candidates[0].content.parts[0].text;
-          } catch (e) { aiText = `[ERROR] Stream corrupted. Partial recovery logged.`; }
+            const system = `You are a backend file generator for a hacking simulator called STEAMBREACH. Generate realistic file contents for the organization "${world[targetIP]?.org?.orgName || 'Unknown'}". Write MAX 8 lines. Match the file extension exactly. Hide useful intel naturally. Never use markdown.`;
+            const prompt = `Generate realistic contents for: ${arg1}\nContext: ${contextHint}`;
+            
+            aiText = await generateDirectorText(prompt, system);
+          } catch (e) { 
+            aiText = `[ERROR] Stream corrupted. Partial recovery logged.`; 
+          }
 
           if (isInside && world[targetIP]?.val) { aiText += `\n\n[SYSTEM] EXTRACTABLE ASSETS: $${world[targetIP].val.toLocaleString()}`; }
 
