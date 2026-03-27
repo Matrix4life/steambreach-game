@@ -46,7 +46,7 @@ export default function AiSettings({ returnToGame }) {
         </div>
 
         <label style={labelStyle}>AI PROVIDER</label>
-        <select 
+       <select 
           value={config.provider} 
           onChange={e => setConfig({ ...config, provider: e.target.value })} 
           style={inputStyle}
@@ -54,6 +54,7 @@ export default function AiSettings({ returnToGame }) {
           <option value="gemini">Google Gemini</option>
           <option value="openai">OpenAI (ChatGPT)</option>
           <option value="anthropic">Anthropic (Claude)</option>
+          <option value="groq">Groq (Ultra-Fast)</option>
           <option value="ollama">Ollama (Local / Uncensored)</option>
         </select>
 
