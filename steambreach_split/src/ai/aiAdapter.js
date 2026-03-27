@@ -126,3 +126,32 @@ async function fetchOllama(prompt, system, model, baseUrl) {
   const data = await res.json();
   return data.response || "NO RESPONSE";
 }
+async function fetchGroq(prompt, system, key, model) {
+  if (!key || key.trim() === '') {
+    return "ERROR: NO GROQ API KEY PROVIDED.";
+  }
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`
+    },
+    body: JSON.stringify({
+      // Llama 3 8B is blazing fast and usually free on Groq
+      model: model || 'llama3-8b-8192', 
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: prompt }
+      ]
+    })
+  });
+
+  if (!res.ok) {
+    console.error(`Groq Error: ${res.status}`);
+    return `ERROR: GROQ CONNECTION FAILED (${res.status})`;
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || "NO RESPONSE";
+}
