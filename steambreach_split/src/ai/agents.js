@@ -1,7 +1,7 @@
 // ==========================================
 // 3. AI AGENTS (FIXER, EMPLOYEES, BLUE TEAM)
 // ==========================================
-
+import { generateDirectorText } from './aiAdapter';
 const invokeBlueTeamAI = async (apiKey, playerCommand, nodeName, currentTrace, currentHeat) => {
   const prompt = `You are an elite, highly aggressive Cybersecurity SOC Analyst defending the network "${nodeName}". 
   An attacker (the player) has infiltrated your network. Their current Heat is ${currentHeat}% and you have traced them to ${currentTrace}%.
@@ -10,15 +10,9 @@ const invokeBlueTeamAI = async (apiKey, playerCommand, nodeName, currentTrace, c
   Evaluate their command. Write a brutal, intimidating 1-2 sentence terminal message directly to the hacker. Let them know you see them, and mock their tools or their strategy. Do NOT break character. Do not use markdown. Start the message with: [SYSTEM_ADMIN]: `;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: "You are a ruthless defensive AI in a cyberpunk hacking game. You represent the elite Blue Team. You are angry, cocky, and surgical. You want to terminate the player's connection." }] },
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
-      })
-    });
-    const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
+    const system = "You are a ruthless defensive AI in a cyberpunk hacking game. You represent the elite Blue Team. You are angry, cocky, and surgical. You want to terminate the player's connection.";
+    // Send it through the universal adapter!
+    return await generateDirectorText(prompt, system);
   } catch (e) {
     return `[SYSTEM_ADMIN]: I see your little '${playerCommand}' script. You're sloppy. I'm dropping your connection.`;
   }
@@ -171,19 +165,22 @@ const generateInterceptedComms = async (targetIP, nodeData, apiKey) => {
   Do NOT use markdown. Do NOT explain the output.`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
-      })
-    });
-    const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
+    // Send it through the universal adapter!
+    let aiText = await generateDirectorText(prompt, "");
+    
+    // Clean up the text to ensure we only parse the JSON
+    aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+    
+    if (jsonMatch) {
+      const parsedData = JSON.parse(jsonMatch[0]);
+      return { ...fallbackContract, ...parsedData };
+    } else {
+      return fallbackContract;
+    }
   } catch (e) {
-    return `[14:02:11] SRC: ${targetIP} -> DST: 10.0.0.1 [TCP] PUSH, ACK\n[14:02:12] UNENCRYPTED SMTP TRAFFIC DETECTED\n[14:02:15] DATA: "Hey, did you change the root pass? I can't get into the vault."`;
+    return fallbackContract;
   }
-};
 
 const generateAIContract = async (targetIP, nodeData, currentRep, apiKey) => {
   // Ultra-safe data extraction so undefined variables never crash the game
