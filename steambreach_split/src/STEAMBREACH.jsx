@@ -1,3 +1,4 @@
+import AiSettings from './components/AiSettings';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import SoundManager from './components/SoundManager';
 import * as soundEngine from './audio/soundEngine';
