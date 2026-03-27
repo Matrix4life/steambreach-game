@@ -42,7 +42,8 @@ import ContractBoard from './components/ContractBoard';
 import MarketBoard from './components/MarketBoard';
 import DarknetShop from './components/DarknetShop';
 import HardwareMarket from './components/HardwareMarket';
-import { PARTS_BY_ID, generateMarketStock, getSellPrice, getRigEffects } from './constants/rigParts';
+import UnifiedMarket from './components/UnifiedMarket';
+import { PARTS_BY_ID, generateMarketStock, getSellPrice, getRigEffects, generateUnifiedMarket, generateBTCPrice, formatBTC } from './constants/rigParts';
 
 
 
@@ -70,7 +71,9 @@ const STEAMBREACH = () => {
   const [inventory, setInventory] = useState([]);
   const [rig, setRig] = useState({ cpu:null, gpu:null, ram:null, ssd:null, psu:null, cool:null, net:null, case:null });
   const [partsBag, setPartsBag] = useState([]);
+  const [softwareOwned, setSoftwareOwned] = useState([]);
   const [hwMarketData, setHwMarketData] = useState(null);
+  const [btcIndex, setBtcIndex] = useState(1.0);
   
   const [currentRegion, setCurrentRegion] = useState('us-gov');
   const [marketPrices, setMarketPrices] = useState(generateMarketPrices());
@@ -227,7 +230,7 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
 
   const collectCurrentState = () => ({
     operator, gameMode, money, reputation, heat, botnet, proxies, looted, wipedNodes,
-    inventory, rig, partsBag, consumables, stash, currentRegion, marketPrices, world, unlockedFiles, contracts, director, timestamp: Date.now(),
+    inventory, rig, partsBag, softwareOwned, btcIndex, consumables, stash, currentRegion, marketPrices, world, unlockedFiles, contracts, director, timestamp: Date.now(),
   });
 
   const applySaveData = (data) => {
@@ -241,6 +244,8 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
     setInventory(data.inventory || []);
     setRig(data.rig || { cpu:null, gpu:null, ram:null, ssd:null, psu:null, cool:null, net:null, case:null });
     setPartsBag(data.partsBag || []);
+    setSoftwareOwned(data.softwareOwned || []);
+    setBtcIndex(data.btcIndex || 1.0);
     setConsumables(data.consumables || { decoy: 0, burner: 0, zeroday: 0 });
     setStash(data.stash || { cc_dumps: 0, botnets: 0, exploits: 0, zerodays: 0 });
     setCurrentRegion(data.currentRegion || 'us-gov');
@@ -296,6 +301,7 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
     setInventory([]); setConsumables({ decoy: 0, burner: 0, zeroday: 0 }); 
     setRig({ cpu:null, gpu:null, ram:null, ssd:null, psu:null, cool:null, net:null, case:null });
     setPartsBag([]); setHwMarketData(null);
+    setSoftwareOwned([]); setBtcIndex(1.0);
     setStash({ cc_dumps: 0, botnets: 0, exploits: 0, zerodays: 0 });
     setCurrentRegion('us-gov'); setMarketPrices(generateMarketPrices());
     setUnlockedFiles([]); setContracts([]);
@@ -613,9 +619,9 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
 
   // ─── HARDWARE MARKET HANDLERS ─────────────────────────────
   const openHardwareMarket = () => {
-    if (!hwMarketData || hwMarketData.region !== currentRegion) {
-      setHwMarketData(generateMarketStock(currentRegion));
-    }
+    const newBtc = generateBTCPrice(btcIndex);
+    setBtcIndex(newBtc);
+    setHwMarketData(generateUnifiedMarket(currentRegion, newBtc, reputation));
     setScreen('hardware');
   };
 
@@ -670,6 +676,52 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
     if (!partId) return;
     setRig(r => ({ ...r, [slot]: null }));
     setPartsBag(bag => [...bag, partId]);
+  };
+
+  const handleBuySW = (partId, price) => {
+    if (walletFrozen) return;
+    if (money < price) return;
+    const part = PARTS_BY_ID[partId];
+    if (!part) return;
+    if (!part.repeatable && softwareOwned.includes(partId)) return;
+    setMoney(m => m - price);
+    // Repeatable items apply effect immediately, non-repeatable go to inventory
+    if (part.repeatable) {
+      if (part.stats.effect === 'heat_minus_50') setHeat(h => Math.max(h - 50, 0));
+      // Other repeatable effects can be added here
+    } else {
+      setSoftwareOwned(prev => [...prev, partId]);
+      // Map to old inventory system for backward compat
+      const effectMap = {
+        'sw_crypter': 'Crypter', 'sw_nse': 'Scanner', 'sw_dpi': 'Wireshark',
+        'sw_proxy': 'Overclock', 'sw_tor': 'TorRelay', 'sw_vpn': 'VPN',
+        'sw_rootkit': 'Rootkit', 'sw_ai': 'AIAssist',
+      };
+      if (effectMap[partId]) setInventory(inv => [...inv, effectMap[partId]]);
+    }
+    // Reduce stock
+    setHwMarketData(prev => {
+      if (!prev) return prev;
+      return { ...prev, stock: prev.stock.map(s => s.partId === partId ? { ...s, qty: Math.max(0, s.qty - 1) } : s) };
+    });
+  };
+
+  const handleBuyCommodity = (itemKey, qty) => {
+    if (walletFrozen) return;
+    const price = hwMarketData?.commodityPrices?.[itemKey] || 0;
+    const cost = price * qty;
+    if (money >= cost) {
+      setMoney(m => m - cost);
+      setStash(s => ({ ...s, [itemKey]: (s[itemKey] || 0) + qty }));
+    }
+  };
+
+  const handleSellCommodity = (itemKey, qty) => {
+    const currentQty = stash[itemKey] || 0;
+    if (currentQty < qty) return;
+    const price = hwMarketData?.commodityPrices?.[itemKey] || 0;
+    setMoney(m => m + price * qty);
+    setStash(s => ({ ...s, [itemKey]: s[itemKey] - qty }));
   };
 
   const handleMarketTrade = (action, itemKey, qty) => {
@@ -1102,9 +1154,9 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
       },
       
       market: async () => {
-        if (isInside) return `[-] Cannot access Black Market while inside a target. Return to gateway.`;
-        if (walletFrozen) return `[-] WALLET FROZEN: Black Market access restricted by law enforcement.\n[*] Reduce heat below 75% first. You can still sell via 'sell <item> <qty>'.`;
-        setScreen('market');
+        if (isInside) return `[-] Cannot access market while inside a target.`;
+        openHardwareMarket();
+        if (walletFrozen) return `[!] WALLET FROZEN — limited trading. Reduce heat below 75%.`;
         return '';
       },
 
@@ -2321,11 +2373,9 @@ useEffect(() => { setSoundMap(soundMap); }, [soundMap]);
       reset_grid: async () => { localStorage.clear(); window.location.reload(); return "PURGING..."; },
       shop: async () => { 
         if (isInside) return "[-] Exit session first."; 
-        if (walletFrozen) {
-          setScreen('shop');
-          return `[!] WARNING: Wallet frozen. Only Bribe SOC Insider available until heat drops below 75%.`;
-        }
-        setScreen('shop'); return ''; 
+        openHardwareMarket();
+        if (walletFrozen) return `[!] WARNING: Wallet frozen. Only Bribe SOC available until heat drops below 75%.`;
+        return ''; 
       },
       hardware: async () => {
         if (isInside) return "[-] Exit session first.";
@@ -2690,11 +2740,17 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
   }
 
   if (screen === 'hardware') return (
-    <HardwareMarket
+    <UnifiedMarket
       money={money} rig={rig} partsBag={partsBag}
-      marketData={hwMarketData} currentRegion={currentRegion}
-      onBuy={handleHwBuy} onSell={handleHwSell}
+      softwareOwned={softwareOwned}
+      marketData={hwMarketData}
+      commodityStash={stash}
+      currentRegion={currentRegion}
+      onBuyHW={handleHwBuy} onSellHW={handleHwSell}
       onInstall={handleHwInstall} onUninstall={handleHwUninstall}
+      onBuySW={handleBuySW}
+      onBuyCommodity={handleBuyCommodity}
+      onSellCommodity={handleSellCommodity}
       returnToGame={() => setScreen('game')}
     />
   );
