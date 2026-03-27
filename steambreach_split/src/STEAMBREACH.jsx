@@ -2789,13 +2789,13 @@ ${wantedTier === 'MANHUNT' ? '[!!!] REDUCE HEAT IMMEDIATELY. Your entire network
 if (screen === 'soundmanager') {
     return (
       <SoundManager 
-        returnToGame={() => setScreen('')} 
+        returnToGame={() => setScreen('intro')} 
         onSoundMapChange={(map) => soundEngine.setSoundMap(map)}
       />
     );
   }
   if (screen === 'aisettings') {
-  return <AiSettings returnToGame={() => setScreen('')} />;
+  return <AiSettings returnToGame={() => setScreen('intro')} />;
 }
   
   return (
