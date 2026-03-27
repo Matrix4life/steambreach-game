@@ -1,7 +1,9 @@
+import { generateDirectorText } from './aiAdapter';
+
 // ==========================================
 // 3. AI AGENTS (FIXER, EMPLOYEES, BLUE TEAM)
 // ==========================================
-import { generateDirectorText } from './aiAdapter';
+
 const invokeBlueTeamAI = async (apiKey, playerCommand, nodeName, currentTrace, currentHeat) => {
   const prompt = `You are an elite, highly aggressive Cybersecurity SOC Analyst defending the network "${nodeName}". 
   An attacker (the player) has infiltrated your network. Their current Heat is ${currentHeat}% and you have traced them to ${currentTrace}%.
@@ -11,7 +13,6 @@ const invokeBlueTeamAI = async (apiKey, playerCommand, nodeName, currentTrace, c
 
   try {
     const system = "You are a ruthless defensive AI in a cyberpunk hacking game. You represent the elite Blue Team. You are angry, cocky, and surgical. You want to terminate the player's connection.";
-    // Send it through the universal adapter!
     return await generateDirectorText(prompt, system);
   } catch (e) {
     return `[SYSTEM_ADMIN]: I see your little '${playerCommand}' script. You're sloppy. I'm dropping your connection.`;
@@ -165,30 +166,17 @@ const generateInterceptedComms = async (targetIP, nodeData, apiKey) => {
   Do NOT use markdown. Do NOT explain the output.`;
 
   try {
-    // Send it through the universal adapter!
-    let aiText = await generateDirectorText(prompt, "");
-    
-    // Clean up the text to ensure we only parse the JSON
-    aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    const jsonMatch = aiText.match(/\{[\s\S]*\}/);
-    
-    if (jsonMatch) {
-      const parsedData = JSON.parse(jsonMatch[0]);
-      return { ...fallbackContract, ...parsedData };
-    } else {
-      return fallbackContract;
-    }
+    return await generateDirectorText(prompt, "");
   } catch (e) {
-    return fallbackContract;
+    return `[14:02:11] SRC: ${targetIP} -> DST: 10.0.0.1 [TCP] PUSH, ACK\n[14:02:12] UNENCRYPTED SMTP TRAFFIC DETECTED\n[14:02:15] DATA: "Hey, did you change the root pass? I can't get into the vault."`;
   }
+};
 
 const generateAIContract = async (targetIP, nodeData, currentRep, apiKey) => {
-  // Ultra-safe data extraction so undefined variables never crash the game
   const orgName = nodeData?.org?.orgName || "Unknown Target";
   const secLevel = nodeData?.sec || "mid";
   const isHigh = secLevel === 'high' || secLevel === 'elite';
 
-  // 100% Guaranteed Fallback Contract
   const fallbackContract = {
     type: "exfil",
     desc: `[ENCRYPTED REROUTE] Client requires immediate extraction of proprietary data from ${orgName}. Get in, get the files, and scrub your tracks.`,
@@ -199,9 +187,6 @@ const generateAIContract = async (targetIP, nodeData, currentRep, apiKey) => {
     forbidden_tools: [],
     isAmbush: Math.random() < 0.1
   };
-
-  // If there's no API key, don't even try to fetch, just give the fallback immediately
-  if (!apiKey) return fallbackContract;
 
   const prompt = `You are a Darknet Fixer in a hacking simulator. Generate a contract for a player targeting ${orgName} (Security: ${secLevel.toUpperCase()}). Player Reputation: ${currentRep}.
   Return ONLY raw JSON in this exact format. No markdown, no explanation:
@@ -217,47 +202,18 @@ const generateAIContract = async (targetIP, nodeData, currentRep, apiKey) => {
   }`;
 
   try {
-    // 4-Second strict timeout. If the API doesn't answer by then, kill the request.
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify({ 
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        safetySettings: [
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" }
-        ]
-      })
-    });
+    let aiText = await generateDirectorText(prompt, "");
     
-    clearTimeout(timeoutId);
-
-    if (!response.ok) return fallbackContract;
-    
-    const data = await response.json();
-    if (!data.candidates || !data.candidates[0].content) return fallbackContract;
-
-    let aiText = data.candidates[0].content.parts[0].text;
-    
-    // Clean up the text to ensure we only parse the JSON
     aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
     const jsonMatch = aiText.match(/\{[\s\S]*\}/);
     
     if (jsonMatch) {
       const parsedData = JSON.parse(jsonMatch[0]);
-      // Merge the generated data over the fallback, guaranteeing all required fields exist
       return { ...fallbackContract, ...parsedData };
     } else {
       return fallbackContract;
     }
   } catch (e) {
-    // If absolutely anything goes wrong (timeout, crash, parse error), return the fallback
     return fallbackContract;
   }
 };
