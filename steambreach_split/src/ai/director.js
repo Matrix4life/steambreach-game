@@ -130,7 +130,7 @@ import { generateDirectorText } from './aiAdapter';
 
 // ... (keep all your existing director code above)
 
-export const generateStoryEvent = async (currentAlignment) => {
+const generateStoryEvent = async (currentAlignment) => {
   const system = `You are the Story Director for STEAMBREACH, a gritty, M-rated cyberpunk hacking simulator.
   The player just intercepted a highly sensitive communication on a random server.
   Generate a short, dark, high-stakes scenario (e.g., cartel hit, corporate assassination, illegal organ harvesting, whistleblowing). 
